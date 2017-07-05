@@ -192,7 +192,9 @@ function checkPad(padInfo) {
   if(gamepad) gamepad.buttons.map(function (btn, ind) {
     // console.log(btn);
     if(btn.pressed) {
-      if(!depressed[ind]) onePress[ind] = true;
+      if(!depressed[ind]) {
+        onePress[ind] = true;
+      }
       depressed[ind] = true;
     } else {
       if(depressed[ind]) oneRelease[ind] = true;
@@ -201,7 +203,7 @@ function checkPad(padInfo) {
   });
 
   if(Object.keys(onePress).length > 0) returnData.onePress = onePress;
-  // if(Object.keys(depressed).length > 0) returnData.depressed = depressed;
+  if(Object.keys(depressed).length > 0) returnData.depressed = depressed;
   // if(Object.keys(oneRelease).length > 0) returnData.oneRelease = oneRelease;
 
   buttonsPressedOnce(onePress);
@@ -376,7 +378,7 @@ function makeInputDisplayElements(padInfo, inputs) {
 
     var configBtn = getButton(padInfo, btn);
 
-    if(inputs.onePress[4]) {
+    if(inputs.depressed[4]) {
       switch (configBtn) {
         case 0:
         case 3:
@@ -384,7 +386,7 @@ function makeInputDisplayElements(padInfo, inputs) {
           return;
       }
     }
-    if(inputs.onePress[6]) {
+    if(inputs.depressed[6]) {
       switch (configBtn) {
         case 1:
         case 2:
