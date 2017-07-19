@@ -108,3 +108,7 @@
 .input-img.dl { transform: rotateZ(225deg); }
 .input-img.l { transform: rotateZ(270deg); }
 .input-img.ul { transform: rotateZ(315deg); }
+
+canvas {
+  background: red;
+}
