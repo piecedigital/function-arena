@@ -95,9 +95,17 @@
   box-shadow: inset 0 0 5px 5px rgba(175, 175, 175, 1);
 }
 
+.css-button {
+  padding: 4px;
+  border-radius: 5px;
+  background-color: rgba(30, 30, 30, 1);
+  box-shadow: inset 0 0 2px 2px black;
+  color: white;
+}
 
 .inputs {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   flex-direction: column-reverse;
 }
 .input-img.u { /*do nothing. It's already up*/ }
@@ -108,6 +116,15 @@
 .input-img.dl { transform: rotateZ(225deg); }
 .input-img.l { transform: rotateZ(270deg); }
 .input-img.ul { transform: rotateZ(315deg); }
+
+#in-view-inputs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 38px;
+  box-shadow: 0 0 0 4px red;
+}
 
 canvas {
   background: red;

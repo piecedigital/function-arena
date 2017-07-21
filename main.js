@@ -81,6 +81,9 @@ function addPad(e) {
     name: name,
     index: e.gamepad.index,
     configuration: {},
+    recordedInputs: [],
+    readCount: 0,
+    recordRetireTime: 0,
     axes: {
       // ind: 9,
       // u: -1,
@@ -373,7 +376,7 @@ function gameLoop() {
 
 function polishInputData(padInfo, inputs) {
   // var parentElem = document.createElement("div");
-  var parentArray = []
+  var parentArray = [];
 
   if(inputs.depressed) {
     // if 3 punch macro is
@@ -509,7 +512,17 @@ function polishInputData(padInfo, inputs) {
   }
 
   // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
+  if(parentArray.length > 0) {
+    padInfo.recordedInputs.push(parentArray);
+    if(padInfo.recordedInputs.length > 20) padInfo.recordedInputs.shift();
+    if(padInfo.readCount < 10) padInfo.readCount++;
+    showReadCount(padInfo.readCount);
+  }
   displayInputs(parentArray, padInfo);
+}
+
+function showReadCount(readCount) {
+  window["in-view-inputs"].style.height = (38 * readCount) + "px";
 }
 
 function displayInputs(inputsArray, padInfo) {
@@ -532,10 +545,17 @@ function displayInputs(inputsArray, padInfo) {
       elem.className = "btn-input";
       elem.dataset.btn = input;
       var configBtn = getButton(padInfo, input);
-      var img = getInputImage(configBtn);
+      var img, cssBtn = document.createElement("span");
+      cssBtn.className = "css-button";
+      switch (parseInt(configBtn)) {
+        case 8: cssBtn.innerText = "SELECT"; break; // select/back
+        case 9: cssBtn.innerText = "START"; break; // start
+        case 10: cssBtn.innerText = "HOME"; break; // home
+        default: img = getInputImage(configBtn);
+      }
 
       // console.log(img);
-      elem.appendChild(img);
+      elem.appendChild(img || cssBtn);
       parentElem.appendChild(elem);
     }
   });
