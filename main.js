@@ -1,3 +1,72 @@
+HTMLElement.prototype.hasClass = function(stringOrArray) {
+  if(!this) return console.error("No element found");
+  if(!this.className) return false;
+
+  var proceed = function(type) {
+    var yes = false;
+
+    switch (type) {
+      case "Array": yes = stringOrArray.map(check) || yes; break;
+      case "String": yes = check(stringOrArray); break;
+    }
+    return yes;
+  }
+
+  var check = function(text) {
+    return this.className.split(" ").indexOf(text) >= 0;
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  switch (type) {
+    case "String":
+    case "Array":
+      return proceed(type);
+    break;
+  }
+}
+
+HTMLElement.prototype.addClass = function(stringOrArray) {
+  if(!this) return console.error("No element found");
+  var proceed = function(type) {
+    switch (type) {
+      case "Array": stringOrArray.map(add).join(" "); break;
+      case "String": add(stringOrArray); break;
+    }
+  }
+
+  var add = function(text) {
+    var arr = this.className ? this.className.split(" ") : [];
+    if(arr.indexOf(text) !== -1) return;
+    arr.push(text);
+    var joined = arr.join(" ");
+    this.className = joined;
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  proceed(type);
+}
+
+HTMLElement.prototype.removeClass = function(stringOrArray) {
+  if(!this) return console.error("No element found");
+  var proceed = function(type) {
+    switch (type) {
+      case "Array": stringOrArray.map(remove).join(" "); break;
+      case "String": remove(stringOrArray); break;
+    }
+  }
+
+  var remove = function(text) {
+    var arr = this.className ? this.className.split(" ") : [];
+    var place = arr.indexOf(text);
+    if(place < 0) return this.className;
+    arr.splice(place, 1);
+    this.className = arr.join(" ");
+  }.bind(this);
+
+  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  proceed(type);
+}
+
 var gamepads = {};
 var configuring = false;
 var knownAxis;
@@ -56,7 +125,7 @@ window.addEventListener("gamepaddisconnected", function(e) {
 });
 
 (function () {
-  setInterval(function () {
+  function getPads() {
     var pads = navigator.getGamepads();
     Object.keys(pads).map(function (num) {
       if(pads[num]) {
@@ -68,7 +137,9 @@ window.addEventListener("gamepaddisconnected", function(e) {
         });
       }
     });
-  }, 1000/120);
+  }
+  getPads();
+  setInterval(getPads, 1000/60);
   makeCanvas();
   gameLoop();
   setInterval(function () {
@@ -91,6 +162,7 @@ function addPad(e) {
     readCount: 0,
     maxReadCount: 10,
     retireRecordedFrameTime: (1000 / 60) * 50,
+    player: null,
     axes: {
       // ind: 9,
       // u: -1,
@@ -230,10 +302,11 @@ function checkPad(padInfo) {
   function buttonsPressedOnce(buttons) {
     breakdownButton(buttons, function (usedButton) {
       // console.log("pressed", usedButton);
+      if(!padInfo.player) padInfo.player = new Player();
       if(configuring !== false) {
         setConfig(gamepadName, Object.keys(buttons).slice(0, 1)[0]);
       } else {
-        // highlightButton(usedButton);
+        highlightButton(usedButton);
       }
     });
   }
@@ -255,7 +328,7 @@ function checkPad(padInfo) {
   function buttonsReleasedOnce(buttons) {
     breakdownButton(buttons, function (usedButton) {
       // console.log("released");
-      // highlightButton(usedButton, true);
+      highlightButton(usedButton, true);
     });
   }
 
@@ -292,90 +365,16 @@ function checkPad(padInfo) {
   return returnData;
 }
 
-HTMLElement.prototype.hasClass = function(stringOrArray) {
-  if(!this) return console.error("No element found");
-  if(!this.className) return false;
-
-  var proceed = function(type) {
-    var yes = false;
-
-    switch (type) {
-      case "Array": yes = stringOrArray.map(check) || yes; break;
-      case "String": yes = check(stringOrArray); break;
-    }
-    return yes;
-  }
-
-  var check = function(text) {
-    return this.className.split(" ").indexOf(text) >= 0;
-  }.bind(this);
-
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
-  switch (type) {
-    case "String":
-    case "Array":
-      return proceed(type);
-    break;
-  }
-}
-
-HTMLElement.prototype.addClass = function(stringOrArray) {
-  if(!this) return console.error("No element found");
-  var proceed = function(type) {
-    switch (type) {
-      case "Array": stringOrArray.map(add).join(" "); break;
-      case "String": add(stringOrArray); break;
-    }
-  }
-
-  var add = function(text) {
-    var arr = this.className ? this.className.split(" ") : [];
-    if(arr.indexOf(text) !== -1) return;
-    arr.push(text);
-    var joined = arr.join(" ");
-    this.className = joined;
-  }.bind(this);
-
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
-  proceed(type);
-}
-
-HTMLElement.prototype.removeClass = function(stringOrArray) {
-  if(!this) return console.error("No element found");
-  var proceed = function(type) {
-    switch (type) {
-      case "Array": stringOrArray.map(remove).join(" "); break;
-      case "String": remove(stringOrArray); break;
-    }
-  }
-
-  var remove = function(text) {
-    var arr = this.className ? this.className.split(" ") : [];
-    var place = arr.indexOf(text);
-    if(place < 0) return this.className;
-    arr.splice(place, 1);
-    this.className = arr.join(" ");
-  }.bind(this);
-
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
-  proceed(type);
-}
-
-HTMLImageElement.prototype.hasClass = HTMLElement.prototype.hasClass;
-
-HTMLImageElement.prototype.addClass = HTMLElement.prototype.addClass;
-
-HTMLImageElement.prototype.removeClass = HTMLElement.prototype.removeClass;
-
 function gameLoop() {
   var start = Date.now();
   Object.keys(gamepads).map(name => {
-    var returned = checkPad(gamepads[name]);
+    var padInfo = gamepads[name];
+    var returned = checkPad(padInfo);
 
     if(returned && Object.keys(returned).length > 0) {
       // console.log(returned);
       // makeInputDisplayElements(gamepads[name], returned);
-      polishInputData(gamepads[name], returned);
+      if(padInfo.player) padInfo.player.polishInputData(gamepads[name], returned);
     }
   });
   var end = Date.now();
@@ -383,159 +382,6 @@ function gameLoop() {
   proctime.innerText = timeDiff;
   framesCounted++;
   setTimeout(gameLoop, (1000 / 60) - timeDiff);
-}
-
-function polishInputData(padInfo, inputs) {
-  // var parentElem = document.createElement("div");
-  var parentArray = [];
-
-  // console.log(inputs);
-  if(inputs.depressed) {
-    // if 3 punch macro is
-    if(inputs.depressed[4]) {
-      // check if individual punches are pressed
-      if(
-        inputs.depressed[0] &&
-        inputs.depressed[3] &&
-        inputs.depressed[5]
-      ) {
-        // delete the macro input
-        if(inputs.onePress) delete inputs.onePress[4];
-      } else {
-        // add the individual inputs
-        inputs.depressed[0] = true;
-        inputs.depressed[3] = true;
-        inputs.depressed[5] = true;
-      }
-    }
-
-    // 3 kick macro
-    if(inputs.depressed[6]) {
-      if(
-        inputs.depressed[1] &&
-        inputs.depressed[2] &&
-        inputs.depressed[7]
-        ) {
-        if(inputs.onePress) delete inputs.onePress[6];
-      } else {
-        inputs.depressed[1] = true;
-        inputs.depressed[2] = true;
-        inputs.depressed[7] = true;
-      }
-    }
-  }
-
-  if(inputs.onePress) {
-    if(inputs.onePress[4]) {
-      inputs.onePress[0] = true;
-      inputs.onePress[3] = true;
-      inputs.onePress[5] = true;
-      delete inputs.onePress[4];
-    }
-    if(inputs.onePress[6]) {
-      inputs.onePress[1] = true;
-      inputs.onePress[2] = true;
-      inputs.onePress[7] = true;
-      delete inputs.onePress[6];
-    }
-    // console.log(inputs.onePress);
-    Object.keys(inputs.onePress).map(btn => {
-      // if(inputs.onePress && inputs.onePress[btn]) return;
-
-      // var configBtn = getButton(padInfo, btn);
-
-      // if(inputs.depressed[getButton(padInfo, 4)]) {
-      //   switch (configBtn) {
-      //     case 0:
-      //     case 3:
-      //     case 5:
-      //       delete inputs.onePress[configBtn];
-      //       return;
-      //   }
-      // }
-      // if(inputs.depressed[getButton(padInfo, 6)]) {
-      //   switch (configBtn) {
-      //     case 1:
-      //     case 2:
-      //     case 7:
-      //       delete inputs.onePress[configBtn];
-      //       return;
-      //   }
-      // }
-      // var elem = document.createElement("span");
-      // elem.className = "btn-input";
-      // elem.dataset.btn = btn;
-      // var img = getInputImage(configBtn);
-      //
-      // // console.log(img);
-      // elem.appendChild(img);
-      // parentElem.appendChild(elem);
-      parentArray.push(btn);
-    });
-  }
-  // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
-    //   if(inputs.onePress && inputs.onePress[btn]) return;
-    //
-    //   var configBtn = getButton(padInfo, btn);
-    //
-    //   if(inputs.depressed[4]) {
-    //     switch (configBtn) {
-    //       case 0:
-    //       case 3:
-    //       case 5:
-    //         return;
-    //     }
-    //   }
-    //   if(inputs.depressed[6]) {
-    //     switch (configBtn) {
-    //       case 1:
-    //       case 2:
-    //       case 7:
-    //         return;
-    //     }
-    //   }
-    //   var elem = document.createElement("span");
-    //   elem.className = "btn-input";
-    //   elem.dataset.btn = btn;
-    //   var img = getInputImage(configBtn);
-    //
-    //   // console.log(img);
-    //   elem.appendChild(img);
-    //   parentElem.appendChild(elem);
-    // });
-
-  if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
-
-  if(
-    inputs.oneAxis === inputs.axis ||
-    inputs.onePress
-  ) {
-    if(inputs.axis !== "n") {
-      // var elem = document.createElement("span");
-      // elem.className = "axis-input";
-      // elem.dataset.axis = inputs.axis;
-      // var img = getInputImage(inputs.axis);
-      //
-      // elem.appendChild(img);
-      // parentElem.appendChild(elem);
-      parentArray.push(inputs.axis);
-    }
-  }
-
-  // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
-  if(parentArray.length > 0) {
-    padInfo.recordedInputs.push(parentArray);
-    if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
-    padInfo.readCount++;
-    showReadCount(padInfo.readCount, padInfo.maxReadCount);
-    setTimeout(function () {
-      var index = padInfo.recordedInputs.indexOf(parentArray);
-      if(index >= 0) padInfo.recordedInputs[index] = null;
-      showReadCount(--padInfo.readCount, padInfo.maxReadCount);
-    }, padInfo.retireRecordedFrameTime);
-  }
-  displayInputs(parentArray, padInfo);
-  captureSpecialMove(padInfo);
 }
 
 function showReadCount(readCount, maxReadCount) {
@@ -616,7 +462,7 @@ function makeInputDisplayElements(padInfo, inputs) {
         inputs.depressed[1] &&
         inputs.depressed[2] &&
         inputs.depressed[7]
-        ) {
+      ) {
         if(inputs.onePress) delete inputs.onePress[6];
       } else {
         inputs.depressed[1] = true;
@@ -675,35 +521,35 @@ function makeInputDisplayElements(padInfo, inputs) {
     });
   }
   // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
-    //   if(inputs.onePress && inputs.onePress[btn]) return;
-    //
-    //   var configBtn = getButton(padInfo, btn);
-    //
-    //   if(inputs.depressed[4]) {
-    //     switch (configBtn) {
-    //       case 0:
-    //       case 3:
-    //       case 5:
-    //         return;
-    //     }
-    //   }
-    //   if(inputs.depressed[6]) {
-    //     switch (configBtn) {
-    //       case 1:
-    //       case 2:
-    //       case 7:
-    //         return;
-    //     }
-    //   }
-    //   var elem = document.createElement("span");
-    //   elem.className = "btn-input";
-    //   elem.dataset.btn = btn;
-    //   var img = getInputImage(configBtn);
-    //
-    //   // console.log(img);
-    //   elem.appendChild(img);
-    //   parentElem.appendChild(elem);
-    // });
+  //   if(inputs.onePress && inputs.onePress[btn]) return;
+  //
+  //   var configBtn = getButton(padInfo, btn);
+  //
+  //   if(inputs.depressed[4]) {
+  //     switch (configBtn) {
+  //       case 0:
+  //       case 3:
+  //       case 5:
+  //         return;
+  //     }
+  //   }
+  //   if(inputs.depressed[6]) {
+  //     switch (configBtn) {
+  //       case 1:
+  //       case 2:
+  //       case 7:
+  //         return;
+  //     }
+  //   }
+  //   var elem = document.createElement("span");
+  //   elem.className = "btn-input";
+  //   elem.dataset.btn = btn;
+  //   var img = getInputImage(configBtn);
+  //
+  //   // console.log(img);
+  //   elem.appendChild(img);
+  //   parentElem.appendChild(elem);
+  // });
 
   if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
 
@@ -757,38 +603,6 @@ function getInputImage(configBtn) {
   }
 }
 
-function captureSpecialMove(padInfo) {
-  var actionsArray = [
-    // { name: "spd", input: [""] },
-    // { name: "cmdg", input: [] },
-    // { name: "dp", input: [] },
-    // { name: "rdp", input: [] },
-    { name: "fb", input: ["d", "dr", "r", "0"] },
-    // { name: "rfb", input: [] }
-  ];
-  actionsArray.map(action => {
-    if(padInfo.recordedInputs.length >= action.input.length) {
-      var record = padInfo.recordedInputs;
-
-      var whatIwant = action.input;
-
-      var whatIgot = record.slice((record.length-1) - (whatIwant.length-1))
-
-      var whatImatched = [];
-      whatIgot.map((inputs, ind) => {
-        if(inputs) {
-          var place = inputs.indexOf(whatIwant[ind]);
-          if(place >= 0) whatImatched.push(whatIwant[ind]);
-        }
-      });
-
-      // console.log("what i got", whatIgot);
-      // console.log("what i matched", whatImatched);
-      console.log("what I matched is what I want", whatImatched.join("") === whatIwant.join(""));
-    }
-  });
-}
-
 function makeCanvas() {
   var canvas = document.createElement("canvas");
   canvas.width = canvasInfo.width;
@@ -800,5 +614,237 @@ function makeCanvas() {
     cc.appendChild(canvas);
   } else {
     console.error("cannot find canvas container");
+  }
+}
+
+// character functions
+function Player(data) {
+  var constructor = function(data) {
+    this.facing = "right";
+  }.bind(this, data)();
+  // console.log(self);
+  // console.log(this);
+  this.getSelfPadInfo = function () {
+    return this;
+  }
+
+  this.actionsArray = [
+    // {
+    //   name: "spinningPileDriver",
+    //   input: [""]
+    // },
+    // {
+    //   name: "commandGrab",
+    //   input: []
+    // },
+    // {
+    //   name: "dragonPunch",
+    //   input: []
+    // },
+    // {
+    //   name: "reverseDragonPunch",
+    //   input: []
+    // },
+    {
+      name: "fireball",
+      input: ["d", "df", "f", "0"]
+    },
+    // {
+    //   name: "tatsu",
+    //   input: []
+    // }
+  ];
+
+  this.polishInputData = function(padInfo, inputs) {
+    // var parentElem = document.createElement("div");
+    var parentArray = [];
+
+    // console.log(inputs);
+    if(inputs.depressed) {
+      // if 3 punch macro is
+      if(inputs.depressed[4]) {
+        // check if individual punches are pressed
+        if(
+          inputs.depressed[0] &&
+          inputs.depressed[3] &&
+          inputs.depressed[5]
+        ) {
+          // delete the macro input
+          if(inputs.onePress) delete inputs.onePress[4];
+        } else {
+          // add the individual inputs
+          inputs.depressed[0] = true;
+          inputs.depressed[3] = true;
+          inputs.depressed[5] = true;
+        }
+      }
+
+      // 3 kick macro
+      if(inputs.depressed[6]) {
+        if(
+          inputs.depressed[1] &&
+          inputs.depressed[2] &&
+          inputs.depressed[7]
+          ) {
+          if(inputs.onePress) delete inputs.onePress[6];
+        } else {
+          inputs.depressed[1] = true;
+          inputs.depressed[2] = true;
+          inputs.depressed[7] = true;
+        }
+      }
+    }
+
+    if(inputs.onePress) {
+      if(inputs.onePress[4]) {
+        inputs.onePress[0] = true;
+        inputs.onePress[3] = true;
+        inputs.onePress[5] = true;
+        delete inputs.onePress[4];
+      }
+      if(inputs.onePress[6]) {
+        inputs.onePress[1] = true;
+        inputs.onePress[2] = true;
+        inputs.onePress[7] = true;
+        delete inputs.onePress[6];
+      }
+      // console.log(inputs.onePress);
+      Object.keys(inputs.onePress).map(btn => {
+        // if(inputs.onePress && inputs.onePress[btn]) return;
+
+        // var configBtn = getButton(padInfo, btn);
+
+        // if(inputs.depressed[getButton(padInfo, 4)]) {
+        //   switch (configBtn) {
+        //     case 0:
+        //     case 3:
+        //     case 5:
+        //       delete inputs.onePress[configBtn];
+        //       return;
+        //   }
+        // }
+        // if(inputs.depressed[getButton(padInfo, 6)]) {
+        //   switch (configBtn) {
+        //     case 1:
+        //     case 2:
+        //     case 7:
+        //       delete inputs.onePress[configBtn];
+        //       return;
+        //   }
+        // }
+        // var elem = document.createElement("span");
+        // elem.className = "btn-input";
+        // elem.dataset.btn = btn;
+        // var img = getInputImage(configBtn);
+        //
+        // // console.log(img);
+        // elem.appendChild(img);
+        // parentElem.appendChild(elem);
+        parentArray.push(btn);
+      });
+    }
+    // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
+      //   if(inputs.onePress && inputs.onePress[btn]) return;
+      //
+      //   var configBtn = getButton(padInfo, btn);
+      //
+      //   if(inputs.depressed[4]) {
+      //     switch (configBtn) {
+      //       case 0:
+      //       case 3:
+      //       case 5:
+      //         return;
+      //     }
+      //   }
+      //   if(inputs.depressed[6]) {
+      //     switch (configBtn) {
+      //       case 1:
+      //       case 2:
+      //       case 7:
+      //         return;
+      //     }
+      //   }
+      //   var elem = document.createElement("span");
+      //   elem.className = "btn-input";
+      //   elem.dataset.btn = btn;
+      //   var img = getInputImage(configBtn);
+      //
+      //   // console.log(img);
+      //   elem.appendChild(img);
+      //   parentElem.appendChild(elem);
+      // });
+
+    if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
+
+    if(
+      inputs.oneAxis === inputs.axis ||
+      inputs.onePress
+    ) {
+      if(inputs.axis !== "n") {
+        // var elem = document.createElement("span");
+        // elem.className = "axis-input";
+        // elem.dataset.axis = inputs.axis;
+        // var img = getInputImage(inputs.axis);
+        //
+        // elem.appendChild(img);
+        // parentElem.appendChild(elem);
+        parentArray.push(inputs.axis);
+      }
+    }
+
+    // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
+    if(parentArray.length > 0) {
+      padInfo.recordedInputs.push(parentArray);
+      if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
+      padInfo.readCount++;
+      showReadCount(padInfo.readCount, padInfo.maxReadCount);
+      setTimeout(function () {
+        var index = padInfo.recordedInputs.indexOf(parentArray);
+        if(index >= 0) padInfo.recordedInputs[index] = null;
+        showReadCount(--padInfo.readCount, padInfo.maxReadCount);
+      }, padInfo.retireRecordedFrameTime);
+    }
+    displayInputs(parentArray, padInfo);
+    this.captureSpecialMove(padInfo);
+  }
+
+  this.captureSpecialMove = function(padInfo) {
+    // this creates an array which basically represets directions
+    // the first index is the left, and the second index is the right
+    // that means that if the player is facing right "dr" = `d${dir[1]}` = "df" (down-forward)
+    // vice versa, if the player is facing left "dr" = `d${dir[0]}` = "db" (down-back)
+    var dir = this.facing === "right" ? ["b", "f"] : ["f", "b"];
+    this.actionsArray.map(action => {
+      if(padInfo.recordedInputs.length >= action.input.length) {
+        var record = padInfo.recordedInputs;
+
+        var whatIwant = action.input;
+
+        var whatImWorkingWith = record.slice((record.length-1) - (whatIwant.length-1))
+        // console.log(whatImWorkingWith);
+
+        var whatImatched = [];
+        whatImWorkingWith.map((inputs, ind) => {
+          if(inputs) {
+            // this is where it makes use of the "dir" variable, changing the inputs to represent faces rather than
+            var alteredInputs = inputs.map(input => {
+              if(input.match("r")) {
+                input = input.replace("r", dir[1])
+              } else if(input.match("l")){
+                input = input.replace("l", dir[0])
+              }
+              return input;
+            });
+
+            var place = alteredInputs.indexOf(whatIwant[ind]);
+            if(place >= 0) whatImatched.push(whatIwant[ind]);
+          }
+        });
+
+        // console.log("what i got", whatImWorkingWith);
+        // console.log("what i matched", whatImatched);
+        console.log("what I matched is what I want", whatImatched.join("") === whatIwant.join(""), action.name);
+      }
+    });
   }
 }
