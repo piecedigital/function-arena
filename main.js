@@ -41,7 +41,7 @@ var inputImages = {};
   // console.log(input, name);
 });
 
-
+var framesCounted = 0;
 var ballTop = document.querySelector(".stick .ball");
 var inputDisplay = document.querySelector(".inputs");
 
@@ -71,6 +71,11 @@ window.addEventListener("gamepaddisconnected", function(e) {
   }, 1000/120);
   makeCanvas();
   gameLoop();
+  setInterval(function () {
+    // console.log("FPS:", framesCounted);
+    fps.innerText = framesCounted;
+    framesCounted = 0;
+  }, 1000);
 })()
 
 function addPad(e) {
@@ -82,8 +87,10 @@ function addPad(e) {
     index: e.gamepad.index,
     configuration: {},
     recordedInputs: [],
+    maxRecordedInputs: 50,
     readCount: 0,
-    recordRetireTime: 0,
+    maxReadCount: 10,
+    retireRecordedFrameTime: (1000 / 60) * 50,
     axes: {
       // ind: 9,
       // u: -1,
@@ -267,7 +274,7 @@ function checkPad(padInfo) {
     var value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
     var input = getStickInput(value);
     // console.log(value);
-    returnData.axis = input;
+    if(input) returnData.axis = input;
     if(input && ballTop && !ballTop.hasClass(input)) {
       returnData.oneAxis = input;
       // console.log(input);
@@ -361,23 +368,28 @@ HTMLImageElement.prototype.addClass = HTMLElement.prototype.addClass;
 HTMLImageElement.prototype.removeClass = HTMLElement.prototype.removeClass;
 
 function gameLoop() {
-  var tick = setInterval(function () {
-    Object.keys(gamepads).map(name => {
-      var returned = checkPad(gamepads[name]);
+  var start = Date.now();
+  Object.keys(gamepads).map(name => {
+    var returned = checkPad(gamepads[name]);
 
-      if(returned && Object.keys(returned).length > 0) {
-        // console.log(returned);
-        // makeInputDisplayElements(gamepads[name], returned);
-        polishInputData(gamepads[name], returned);
-      }
-    });
-  }, 1000/120);
+    if(returned && Object.keys(returned).length > 0) {
+      // console.log(returned);
+      // makeInputDisplayElements(gamepads[name], returned);
+      polishInputData(gamepads[name], returned);
+    }
+  });
+  var end = Date.now();
+  var timeDiff = end-start;
+  proctime.innerText = timeDiff;
+  framesCounted++;
+  setTimeout(gameLoop, (1000 / 60) - timeDiff);
 }
 
 function polishInputData(padInfo, inputs) {
   // var parentElem = document.createElement("div");
   var parentArray = [];
 
+  // console.log(inputs);
   if(inputs.depressed) {
     // if 3 punch macro is
     if(inputs.depressed[4]) {
@@ -412,7 +424,6 @@ function polishInputData(padInfo, inputs) {
       }
     }
   }
-  // console.log(inputs);
 
   if(inputs.onePress) {
     if(inputs.onePress[4]) {
@@ -514,21 +525,27 @@ function polishInputData(padInfo, inputs) {
   // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
   if(parentArray.length > 0) {
     padInfo.recordedInputs.push(parentArray);
-    if(padInfo.recordedInputs.length > 20) padInfo.recordedInputs.shift();
-    if(padInfo.readCount < 10) padInfo.readCount++;
-    showReadCount(padInfo.readCount);
+    if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
+    padInfo.readCount++;
+    showReadCount(padInfo.readCount, padInfo.maxReadCount);
+    setTimeout(function () {
+      var index = padInfo.recordedInputs.indexOf(parentArray);
+      if(index >= 0) padInfo.recordedInputs[index] = null;
+      showReadCount(--padInfo.readCount, padInfo.maxReadCount);
+    }, padInfo.retireRecordedFrameTime);
   }
   displayInputs(parentArray, padInfo);
+  captureSpecialMove(padInfo);
 }
 
-function showReadCount(readCount) {
-  window["in-view-inputs"].style.height = (38 * readCount) + "px";
+function showReadCount(readCount, maxReadCount) {
+  window["in-view-inputs"].style.height = (38 * (readCount > maxReadCount ? maxReadCount : readCount)) + "px";
 }
 
 function displayInputs(inputsArray, padInfo) {
   var parentElem = document.createElement("div");
 
-  if(inputsArray.length > 0) console.log(inputsArray);
+  // if(inputsArray.length > 0) console.log(inputsArray);
   inputsArray.map(input => {
     if( isNaN(parseInt(input)) ) {
       // letter. axis input
@@ -536,10 +553,11 @@ function displayInputs(inputsArray, padInfo) {
       elem.className = "axis-input";
       elem.dataset.axis = input;
       var img = getInputImage(input);
-
+      if(!img) return;
       elem.appendChild(img);
       parentElem.appendChild(elem);
-    } else {
+    } else
+    if(typeof parseInt(input) === "number") {
       // number. button input
       var elem = document.createElement("span");
       elem.className = "btn-input";
@@ -560,7 +578,13 @@ function displayInputs(inputsArray, padInfo) {
     }
   });
 
-  if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
+  if(parentElem.innerHTML) {
+    inputDisplay.appendChild(parentElem);
+    setTimeout(function () {
+      inputDisplay.removeChild(parentElem);
+      parentElem = null;
+    }, padInfo.retireRecordedFrameTime)
+  }
 }
 
 function makeInputDisplayElements(padInfo, inputs) {
@@ -731,6 +755,38 @@ function getInputImage(configBtn) {
       }
     }
   }
+}
+
+function captureSpecialMove(padInfo) {
+  var actionsArray = [
+    // { name: "spd", input: [""] },
+    // { name: "cmdg", input: [] },
+    // { name: "dp", input: [] },
+    // { name: "rdp", input: [] },
+    { name: "fb", input: ["d", "dr", "r", "0"] },
+    // { name: "rfb", input: [] }
+  ];
+  actionsArray.map(action => {
+    if(padInfo.recordedInputs.length >= action.input.length) {
+      var record = padInfo.recordedInputs;
+
+      var whatIwant = action.input;
+
+      var whatIgot = record.slice((record.length-1) - (whatIwant.length-1))
+
+      var whatImatched = [];
+      whatIgot.map((inputs, ind) => {
+        if(inputs) {
+          var place = inputs.indexOf(whatIwant[ind]);
+          if(place >= 0) whatImatched.push(whatIwant[ind]);
+        }
+      });
+
+      // console.log("what i got", whatIgot);
+      // console.log("what i matched", whatImatched);
+      console.log("what I matched is what I want", whatImatched.join("") === whatIwant.join(""));
+    }
+  });
 }
 
 function makeCanvas() {

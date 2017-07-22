@@ -108,6 +108,13 @@
   display: inline-flex;
   flex-direction: column-reverse;
 }
+
+.inputs > div {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+}
+
 .input-img.u { /*do nothing. It's already up*/ }
 .input-img.ur { transform: rotateZ(45deg); }
 .input-img.r { transform: rotateZ(90deg); }
