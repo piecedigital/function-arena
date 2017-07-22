@@ -620,13 +620,10 @@ function makeCanvas() {
 // character functions
 function Player(data) {
   var constructor = function(data) {
+    console.log("constructing");
     this.facing = "right";
+    console.log(this);
   }.bind(this, data)();
-  // console.log(self);
-  // console.log(this);
-  this.getSelfPadInfo = function () {
-    return this;
-  }
 
   this.actionsArray = [
     // {
@@ -654,6 +651,13 @@ function Player(data) {
     //   input: []
     // }
   ];
+
+  this.changeFace = function() {
+    console.log("changing face");
+    this.facing = this.facing === "right" ? "left" : "right";
+    facing.innerText = this.facing;
+    console.log(this.facing);
+  }
 
   this.polishInputData = function(padInfo, inputs) {
     // var parentElem = document.createElement("div");
@@ -843,8 +847,11 @@ function Player(data) {
 
         // console.log("what i got", whatImWorkingWith);
         // console.log("what i matched", whatImatched);
-        console.log("what I matched is what I want", whatImatched.join("") === whatIwant.join(""), action.name);
+        var whatImatchedIsWhatIwant = whatImatched.join("") === whatIwant.join("");
+        if(whatImatchedIsWhatIwant) console.log("what I matched is what I want", whatImatchedIsWhatIwant,action.name);
       }
     });
   }
+
+  facechange.addEventListener("click", this.changeFace.bind(this));
 }
