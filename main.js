@@ -374,7 +374,7 @@ function gameLoop() {
     if(returned && Object.keys(returned).length > 0) {
       // console.log(returned);
       // makeInputDisplayElements(gamepads[name], returned);
-      if(padInfo.player) padInfo.player.polishInputData(gamepads[name], returned);
+      if(padInfo.player) padInfo.player.receiveInputData(gamepads[name], returned);
     }
   });
   var end = Date.now();
@@ -426,10 +426,10 @@ function displayInputs(inputsArray, padInfo) {
 
   if(parentElem.innerHTML) {
     inputDisplay.appendChild(parentElem);
-    setTimeout(function () {
-      inputDisplay.removeChild(parentElem);
-      parentElem = null;
-    }, padInfo.retireRecordedFrameTime)
+    // setTimeout(function () {
+    //   inputDisplay.removeChild(parentElem);
+    //   parentElem = null;
+    // }, padInfo.retireRecordedFrameTime)
   }
 }
 
@@ -620,43 +620,158 @@ function makeCanvas() {
 // character functions
 function Player(data) {
   var constructor = function(data) {
-    console.log("constructing");
+    this.actionsArray = [
+      // {
+      //   name: "spinningPileDriver",
+      //   input: [""]
+      // },
+      // {
+      //   name: "dragonPunch",
+      //   input: []
+      // },
+      // {
+      //   name: "reverseDragonPunch",
+      //   input: []
+      // },
+      // {
+      //   name: "tatsu",
+      //   input: []
+      // }
+    ];
+
+    // add inputs
+    // HCB & HCF
+    [
+      ["F", "EX", "0+3", 20],
+      ["F", "EX", "0+3+5", 20],
+      ["F", "EX", "3+5", 20],
+      ["F", "EX", "0+5", 20],
+      ["B", "EX", "0+3", 20],
+      ["B", "EX", "0+3+5", 20],
+      ["B", "EX", "3+5", 20],
+      ["B", "EX", "0+5", 20],
+
+      ["B", "LP", "0", 15],
+      ["B", "MP", "3", 18],
+      ["B", "HP", "5", 20],
+      ["F", "LP", "0", 15],
+      ["F", "MP", "3", 18],
+      ["F", "HP", "5", 20],
+
+      ["B", "LK", "1", 15],
+      ["B", "MK", "2", 18],
+      ["B", "HK", "7", 20],
+      ["F", "LK", "1", 15],
+      ["F", "MK", "2", 18],
+      ["F", "HK", "7", 20],
+    ].map(([d, btn, btnNum, recovery]) => {
+      var input = ["f", "df", "d", "db", "b"];
+      if(d === "F") input.reverse();
+      this.actionsArray.push(
+        {
+          name: "HC" + d + btn,
+          recovery,
+          input: input.concat([btnNum])
+        }
+      );
+      this.actionsArray.push(
+        {
+          name: "HC" + d + btn,
+          recovery,
+          input: input.concat([input.pop() + "+" + btnNum])
+        }
+      );
+    });
+    // QCB & QCF
+    [
+      ["F", "EX", "0+3", 20],
+      ["F", "EX", "0+3+5", 20],
+      ["F", "EX", "3+5", 20],
+      ["F", "EX", "0+5", 20],
+
+      ["B", "EX", "0+3", 20],
+      ["B", "EX", "0+3+5", 20],
+      ["B", "EX", "3+5", 20],
+      ["B", "EX", "0+5", 20],
+
+      ["B", "LP", "0", 15],
+      ["B", "MP", "3", 18],
+      ["B", "HP", "5", 20],
+      ["F", "LP", "0", 15],
+      ["F", "MP", "3", 18],
+      ["F", "HP", "5", 20],
+
+      ["B", "LK", "1", 15],
+      ["B", "MK", "2", 18],
+      ["B", "HK", "7", 20],
+      ["F", "LK", "1", 15],
+      ["F", "MK", "2", 18],
+      ["F", "HK", "7", 20],
+    ].map(([d, btn, btnNum, recovery]) => {
+      var input = d === "F" ? ["d", "df", "f"] : ["d", "db", "b"];
+      this.actionsArray.push(
+        {
+          name: "QC" + d + btn,
+          recovery,
+          input: input.concat([btnNum])
+        }
+      );
+      this.actionsArray.push(
+        {
+          name: "QC" + d + btn,
+          recovery,
+          input: input.concat([input.pop() + "+" + btnNum])
+        }
+      );
+    });
+
+    // console.log(this.actionsArray);
+
+    // console.log("constructing");
     this.facing = "right";
-    console.log(this);
+    this.canTakeInput = true;
+    // console.log(this);
   }.bind(this, data)();
 
-  this.actionsArray = [
-    // {
-    //   name: "spinningPileDriver",
-    //   input: [""]
-    // },
-    // {
-    //   name: "commandGrab",
-    //   input: []
-    // },
-    // {
-    //   name: "dragonPunch",
-    //   input: []
-    // },
-    // {
-    //   name: "reverseDragonPunch",
-    //   input: []
-    // },
-    {
-      name: "fireball",
-      input: ["d", "df", "f", "0"]
-    },
-    // {
-    //   name: "tatsu",
-    //   input: []
-    // }
-  ];
+  this.setActionableState = function(action, state) {
+    switch (action) {
+      case "input":
+        [
+          "canTakeInput",
+          "recovery",
+          "inputsToPurge",
+        ].map(name => {
+          // console.log(name, state[name], state[name] !== undefined);
+          state[name] !== undefined ? this[name] = state[name] : null
+        });
+        break;
+    }
+  };
 
   this.changeFace = function() {
-    console.log("changing face");
+    // console.log("changing face", this.facing);
     this.facing = this.facing === "right" ? "left" : "right";
     facing.innerText = this.facing;
-    console.log(this.facing);
+  }
+
+  this.receiveInputData = function (padInfo, inputs) {
+    if(this.recovery > 0) this.recovery--;
+    // console.log(this.inputsToPurge);
+    if(this.recovery === 1) {
+      this.inputsToPurge.map((_, ind) => {
+        var place = padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]);
+        // console.log(padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]));
+        if(place >= 0) padInfo.recordedInputs[place] = null;
+      });
+      this.inputsToPurge = null;
+      // console.log(padInfo.recordedInputs);
+    }
+    // if(this.recovery) console.log(this.recovery);
+    this.setActionableState("input", {
+      canTakeInput: this.canTakeInput || this.recovery === 0,
+      recovery: this.recovery
+    });
+    if(this.recovery === 0 || this.canTakeInput) this.polishInputData(padInfo, inputs);
   }
 
   this.polishInputData = function(padInfo, inputs) {
@@ -744,7 +859,9 @@ function Player(data) {
         // // console.log(img);
         // elem.appendChild(img);
         // parentElem.appendChild(elem);
-        parentArray.push(btn);
+
+        // parentArray.push(btn);
+        parentArray.push(getButton(padInfo, btn).toString());
       });
     }
     // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
@@ -792,7 +909,7 @@ function Player(data) {
         //
         // elem.appendChild(img);
         // parentElem.appendChild(elem);
-        parentArray.push(inputs.axis);
+        parentArray.unshift(inputs.axis);
       }
     }
 
@@ -805,7 +922,9 @@ function Player(data) {
       setTimeout(function () {
         var index = padInfo.recordedInputs.indexOf(parentArray);
         if(index >= 0) padInfo.recordedInputs[index] = null;
-        showReadCount(--padInfo.readCount, padInfo.maxReadCount);
+        padInfo.readCount--;
+        if(padInfo.readCount < 0) padInfo.readCount = 0;
+        showReadCount(padInfo.readCount, padInfo.maxReadCount);
       }, padInfo.retireRecordedFrameTime);
     }
     displayInputs(parentArray, padInfo);
@@ -818,19 +937,28 @@ function Player(data) {
     // that means that if the player is facing right "dr" = `d${dir[1]}` = "df" (down-forward)
     // vice versa, if the player is facing left "dr" = `d${dir[0]}` = "db" (down-back)
     var dir = this.facing === "right" ? ["b", "f"] : ["f", "b"];
+
     this.actionsArray.map(action => {
+      if(!this.canTakeInput) return;
       if(padInfo.recordedInputs.length >= action.input.length) {
         var record = padInfo.recordedInputs;
 
-        var whatIwant = action.input;
+        var whatIwant = JSON.parse(JSON.stringify(action.input));
 
-        var whatImWorkingWith = record.slice((record.length-1) - (whatIwant.length-1))
+        // pick the higest number to read the inputs
+        // console.log(padInfo.readCount, whatIwant.length, padInfo.readCount < whatIwant.length);
+        var read = padInfo.readCount < whatIwant.length ? padInfo.readCount : whatIwant.length;
+        // var read = whatIwant.length;
+        var whatImWorkingWith = record.slice((record.length-1) - (read-1))
         // console.log(whatImWorkingWith);
 
         var whatImatched = [];
-        whatImWorkingWith.map((inputs, ind) => {
+
+        for(ind = 0; ind < whatImWorkingWith.length; ind++) {
+          var inputs = whatImWorkingWith[ind];
           if(inputs) {
             // this is where it makes use of the "dir" variable, changing the inputs to represent faces rather than
+            // console.log(inputs);
             var alteredInputs = inputs.map(input => {
               if(input.match("r")) {
                 input = input.replace("r", dir[1])
@@ -840,15 +968,39 @@ function Player(data) {
               return input;
             });
 
-            var place = alteredInputs.indexOf(whatIwant[ind]);
-            if(place >= 0) whatImatched.push(whatIwant[ind]);
+            var place = -1;
+            // console.log(whatImWorkingWith,whatIwant[ind]);
+            if(!whatIwant[ind]) continue;
+            if(whatIwant[ind].match("\\+")) {
+              var split = whatIwant[ind].split("+");
+              // console.log(alteredInputs, split);
+              split.map(input => {
+                place = alteredInputs.indexOf(input);
+                // console.log(input, place, alteredInputs);
+                if(place >= 0) whatImatched.push(input);
+              });
+              whatIwant[ind] = split.shift();
+              whatIwant = whatIwant.concat(split);
+            } else {
+              place = alteredInputs.indexOf(whatIwant[ind]);
+              if(place >= 0) whatImatched.push(whatIwant[ind]);
+            }
           }
-        });
+        };
 
         // console.log("what i got", whatImWorkingWith);
-        // console.log("what i matched", whatImatched);
-        var whatImatchedIsWhatIwant = whatImatched.join("") === whatIwant.join("");
-        if(whatImatchedIsWhatIwant) console.log("what I matched is what I want", whatImatchedIsWhatIwant,action.name);
+        // console.log("what I matched", whatImatched);
+        // console.log("what I want", whatIwant);
+        // console.log(whatImatched.join(""), whatIwant.join("").replace("+", ""));
+        var whatImatchedIsWhatIwant = whatImatched.join("") === whatIwant.join("").replace("+", "");
+        if(whatImatchedIsWhatIwant) {
+          console.log("what I matched is what I want", whatImatchedIsWhatIwant, action.name);
+          this.setActionableState("input", {
+            canTakeInput: false,
+            recovery: action.recovery,
+            inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
+          });
+        }
       }
     });
   }
