@@ -67,6 +67,10 @@ HTMLElement.prototype.removeClass = function(stringOrArray) {
   proceed(type);
 }
 
+var realType = function (data) {
+  return Object.prototype.toString.call(data).split(" ").pop().replace(/.$/, "").toLowerCase();
+}
+
 var gamepads = {};
 var configuring = false;
 var knownAxis;
@@ -75,8 +79,48 @@ var canvasInfo = {
   height: 600 * (9/16),
   stageWidth: 1200
 }
-
 var inputImages = {};
+var players = {
+  player1: null,
+  player2: null
+};
+
+var speaker = (function () {
+  var voices, voice;
+  speechSynthesis.onvoiceschanged = function () {
+    voices = speechSynthesis.getVoices();
+    voice = voices[12];
+    console.log("got my voice:", voice);
+    msg.voice = voice;
+    msg.pitch = 0;
+  };
+  var msg = new SpeechSynthesisUtterance();
+  msg.text = "Okay. This is a test";
+  if(voice) msg.voice = voice;
+  if(voice) console.log(voice.name, voice.lang);
+  return {
+    speak: function () {
+      // msg.pitch = Math.random() * 2;
+      speechSynthesis.speak(msg)
+    },
+    setText: function (text) {
+      msg.text = text || msg;
+    },
+    setPitch: function (num) {
+      if(typeof num === "number") {
+        msg.pitch = num;
+      }
+    },
+    setVoice: function (num) {
+      if(voices && typeof num === "number") {
+        console.log(voices[num]);
+        voice = voices[num] || voice;
+        if(voice !== msg.voice) msg.voice = voice;
+        console.log(voice);
+      }
+    }
+  }
+})();
 
 // create input images
 [
@@ -302,7 +346,19 @@ function checkPad(padInfo) {
   function buttonsPressedOnce(buttons) {
     breakdownButton(buttons, function (usedButton) {
       // console.log("pressed", usedButton);
-      if(!padInfo.player) padInfo.player = new Player();
+      if(!padInfo.player) {
+        if(!players.player1) {
+          players.player1 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player1;
+        } else if(!players.player2) {
+          players.player2 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player2;
+        }
+      }
       if(configuring !== false) {
         setConfig(gamepadName, Object.keys(buttons).slice(0, 1)[0]);
       } else {
@@ -617,7 +673,45 @@ function makeCanvas() {
   }
 }
 
-// character functions
+function setPuppet(charName) {
+  var buttons = {
+    punches: ["LP", "MP", "HP", "EX"],
+    punchesNum: ["0", "3", "5", "0+3", "0+3+5", "3+5", "0+5"],
+    kicks: ["LK", "MK", "HK", "EX"],
+    kicksNum: ["1", "2", "7", "1+2", "1+2+7", "2+7", "1+7"]
+  }
+  var characters = {
+    ryu: {
+      inputs: {
+        Z: {
+          // pattern: "Z",
+          dir: "F",
+          btnNum: buttons.punchesNum,
+          displayName: "Shoryuken"
+        },
+        QC: {
+          dir: {
+            B: "B",
+            F: "F"
+          },
+          btnNum: {
+            B: buttons.kicksNum,
+            F: buttons.punchesNum
+          },
+          displayName: {
+            B: "Tatsumaki Senpukyaku",
+            F: "Hadouken"
+          }
+        }
+      }
+    }
+  };
+  switch (charName) {
+    case "ryu":
+      players.player1.setPlayerPuppet( /*new Character*/(characters[charName]) );
+  }
+}
+
 function Player(data) {
   var constructor = function(data) {
     this.actionsArray = [
@@ -639,9 +733,7 @@ function Player(data) {
       // }
     ];
 
-    // add inputs
-    // HCB & HCF
-    [
+    var actionVariants = [
       ["F", "EX", "0+3", 20],
       ["F", "EX", "0+3+5", 20],
       ["F", "EX", "3+5", 20],
@@ -658,67 +750,127 @@ function Player(data) {
       ["F", "MP", "3", 18],
       ["F", "HP", "5", 20],
 
+      ["F", "EX", "1+2", 20],
+      ["F", "EX", "1+2+7", 20],
+      ["F", "EX", "2+7", 20],
+      ["F", "EX", "1+7", 20],
+      ["B", "EX", "1+2", 20],
+      ["B", "EX", "1+2+7", 20],
+      ["B", "EX", "2+7", 20],
+      ["B", "EX", "1+7", 20],
+
       ["B", "LK", "1", 15],
       ["B", "MK", "2", 18],
       ["B", "HK", "7", 20],
       ["F", "LK", "1", 15],
       ["F", "MK", "2", 18],
       ["F", "HK", "7", 20],
-    ].map(([d, btn, btnNum, recovery]) => {
+    ];
+
+    // add inputs
+    // HCB & HCF
+    // !!! null !!!
+    // HCB & HCF
+    actionVariants.map(([d, btn, btnNum, recovery]) => {
+      var pattern = "HC";
       var input = ["f", "df", "d", "db", "b"];
       if(d === "F") input.reverse();
       this.actionsArray.push(
         {
-          name: "HC" + d + btn,
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
           recovery,
           input: input.concat([btnNum])
         }
       );
       this.actionsArray.push(
         {
-          name: "HC" + d + btn,
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([input.pop() + "+" + btnNum])
+        }
+      );
+    });
+    // ZB & ZF
+    actionVariants.map(([d, btn, btnNum, recovery]) => {
+      var pattern = "Z";
+      var input = d === "F" ? ["f", "d", "df", "f"] : ["b", "d", "db", "b"];
+      // with forward input
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([btnNum])
+        }
+      );
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([input.pop() + "+" + btnNum])
+        }
+      );
+      // just down-forward input
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([btnNum])
+        }
+      );
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
           recovery,
           input: input.concat([input.pop() + "+" + btnNum])
         }
       );
     });
     // QCB & QCF
-    [
-      ["F", "EX", "0+3", 20],
-      ["F", "EX", "0+3+5", 20],
-      ["F", "EX", "3+5", 20],
-      ["F", "EX", "0+5", 20],
-
-      ["B", "EX", "0+3", 20],
-      ["B", "EX", "0+3+5", 20],
-      ["B", "EX", "3+5", 20],
-      ["B", "EX", "0+5", 20],
-
-      ["B", "LP", "0", 15],
-      ["B", "MP", "3", 18],
-      ["B", "HP", "5", 20],
-      ["F", "LP", "0", 15],
-      ["F", "MP", "3", 18],
-      ["F", "HP", "5", 20],
-
-      ["B", "LK", "1", 15],
-      ["B", "MK", "2", 18],
-      ["B", "HK", "7", 20],
-      ["F", "LK", "1", 15],
-      ["F", "MK", "2", 18],
-      ["F", "HK", "7", 20],
-    ].map(([d, btn, btnNum, recovery]) => {
+    actionVariants.map(([d, btn, btnNum, recovery]) => {
+      var pattern = "QC";
       var input = d === "F" ? ["d", "df", "f"] : ["d", "db", "b"];
       this.actionsArray.push(
         {
-          name: "QC" + d + btn,
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
           recovery,
           input: input.concat([btnNum])
         }
       );
       this.actionsArray.push(
         {
-          name: "QC" + d + btn,
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
           recovery,
           input: input.concat([input.pop() + "+" + btnNum])
         }
@@ -730,7 +882,9 @@ function Player(data) {
     // console.log("constructing");
     this.facing = "right";
     this.canTakeInput = true;
+    this.padInfo = data.padInfo || null;
     // console.log(this);
+    this.activeActionsArray = this.actionsArray;
   }.bind(this, data)();
 
   this.setActionableState = function(action, state) {
@@ -755,6 +909,7 @@ function Player(data) {
   }
 
   this.receiveInputData = function (padInfo, inputs) {
+    if(!this.puppet) return console.warn("No puppet");
     if(this.recovery > 0) this.recovery--;
     // console.log(this.inputsToPurge);
     if(this.recovery === 1) {
@@ -938,7 +1093,7 @@ function Player(data) {
     // vice versa, if the player is facing left "dr" = `d${dir[0]}` = "db" (down-back)
     var dir = this.facing === "right" ? ["b", "f"] : ["f", "b"];
 
-    this.actionsArray.map(action => {
+    this.activeActionsArray.map(action => {
       if(!this.canTakeInput) return;
       if(padInfo.recordedInputs.length >= action.input.length) {
         var record = padInfo.recordedInputs;
@@ -994,7 +1149,10 @@ function Player(data) {
         // console.log(whatImatched.join(""), whatIwant.join("").replace("+", ""));
         var whatImatchedIsWhatIwant = whatImatched.join("") === whatIwant.join("").replace("+", "");
         if(whatImatchedIsWhatIwant) {
-          console.log("what I matched is what I want", whatImatchedIsWhatIwant, action.name);
+          var text = action.displayName ? action.btn + " " + action.displayName : action.name;
+          speaker.setText(text);
+          console.log("what I matched is what I want", whatImatchedIsWhatIwant, text);
+          speaker.speak();
           this.setActionableState("input", {
             canTakeInput: false,
             recovery: action.recovery,
@@ -1003,6 +1161,92 @@ function Player(data) {
         }
       }
     });
+  }
+
+  this.setPlayerPuppet = function(puppet) {
+    this.puppet = puppet;
+    // console.log(this.puppet);
+    // console.log("length of current actions array:", this.activeActionsArray.length);
+    var newActionsArray = [];
+    this.actionsArray.map(input => {
+      var willAdd = true;
+
+      var puppetInputs = this.puppet.inputs;
+      // a puppet(character) specific patter will be the key on the character data
+      // this patter is used to capture the puppet's moves
+      var move = puppetInputs[input.pattern];
+      var keysToCheck = [
+        // "pattern",
+        "dir",
+        "btnNum"
+      ];
+
+      // if the move(matched by patter) exist
+      if(move) {
+        keysToCheck.map(key => {
+          if(!willAdd) return;
+          var place;
+          // console.log("---");
+          // console.log(key);
+          // console.log(input.dir);
+          // console.log(move);
+          // console.log(move[key]);
+          // console.log(move[key][input.dir]);
+          if(move[key]) {
+            // we'll check the puppet's inputs for these keys
+            // console.log(key, move[key]);
+            if(realType(move[key]) === "object") {
+              if(realType(move[key][input.dir]) === "array") {
+                place = move[key][input.dir].indexOf(input[key]);
+
+                if( place < 0 ) {
+                  console.log("wont add");
+                  willAdd = false;
+                  place = null;
+                }
+              } else {
+                if( move[key][input.dir] !== input[key] ) {
+                  console.log("wont add");
+                  willAdd = false;
+                }
+              }
+            } else {
+                if(realType(move[key]) === "array") {
+                place = move[key].indexOf(input[key]);
+
+                if( place < 0 ) {
+                  console.log("wont add");
+                  willAdd = false;
+                  place = null;
+                }
+              } else {
+                  if( move[key] !== input[key] ) {
+                  console.log("wont add");
+                  willAdd = false;
+                }
+              }
+            }
+          } else {
+            console.log("No key:", key, move, move[key]);
+          }
+        });
+      } else {
+        // if the move(matched by patter) doesn't exist
+        willAdd = false;
+      }
+
+      // if(input.btn.match("K")) console.log(willAdd, input.btnNum, move);
+      if(willAdd) {
+        // console.log(input);
+        newActionsArray.push(Object.assign(input, {
+          displayName: input.dir ? move.displayName[input.dir] || move.displayName : move.displayName,
+          recover: move.recovery || input.recovery
+        }));
+      }
+
+    });
+    console.log("length of new actions array:", newActionsArray.length);
+    this.activeActionsArray = newActionsArray;
   }
 
   facechange.addEventListener("click", this.changeFace.bind(this));
