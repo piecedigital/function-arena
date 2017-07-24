@@ -90,7 +90,7 @@ var speaker = (function () {
   speechSynthesis.onvoiceschanged = function () {
     voices = speechSynthesis.getVoices();
     voice = voices[12];
-    console.log("got my voice:", voice);
+    // console.log("got my voice:", voice);
     msg.voice = voice;
     msg.pitch = 0;
   };
@@ -113,10 +113,10 @@ var speaker = (function () {
     },
     setVoice: function (num) {
       if(voices && typeof num === "number") {
-        console.log(voices[num]);
+        // console.log(voices[num]);
         voice = voices[num] || voice;
         if(voice !== msg.voice) msg.voice = voice;
-        console.log(voice);
+        // console.log(voice);
       }
     }
   }
@@ -675,19 +675,28 @@ function makeCanvas() {
 
 function setPuppet(charName) {
   var buttons = {
-    punches: ["LP", "MP", "HP", "EX"],
-    punchesNum: ["0", "3", "5", "0+3", "0+3+5", "3+5", "0+5"],
-    kicks: ["LK", "MK", "HK", "EX"],
-    kicksNum: ["1", "2", "7", "1+2", "1+2+7", "2+7", "1+7"]
+    punches: ["LP", "MP", "HP", "EX", "SUPER"],
+    punchesNum: ["0", "3", "5", "0+3+5", "0+3", "3+5", "0+5"],
+    kicks: ["LK", "MK", "HK", "EX", "SUPER"],
+    kicksNum: ["1", "2", "7", "1+2+7", "1+2", "2+7", "1+7"]
   }
   var characters = {
     ryu: {
       inputs: {
         Z: {
           // pattern: "Z",
-          dir: "F",
-          btnNum: buttons.punchesNum,
-          displayName: "Shoryuken"
+          dir: {
+            F: "F"
+          },
+          btnNum: {
+            F: buttons.punchesNum
+          },
+          displayName: {
+            F: {
+              norm: "Shoryuken",
+              sup: "Shin Shoryuken",
+            }
+          }
         },
         QC: {
           dir: {
@@ -696,11 +705,25 @@ function setPuppet(charName) {
           },
           btnNum: {
             B: buttons.kicksNum,
-            F: buttons.punchesNum
+            F: {
+              both: true,
+              punches: buttons.punchesNum,
+              kicks: buttons.kicksNum
+            }
           },
           displayName: {
-            B: "Tatsumaki Senpukyaku",
-            F: "Hadouken"
+            B: {
+              norm: "Tatsumaki Senpukyaku",
+            },
+            F: {
+              punches: {
+                norm: "Hadouken",
+                sup: "Shinku Hadouken"
+              },
+              kicks: {
+                norm: "Joudan Sokutogeri",
+              }
+            }
           }
         }
       }
@@ -734,12 +757,12 @@ function Player(data) {
     ];
 
     var actionVariants = [
+      ["F", "SUPER", "0+3+5", 50],
       ["F", "EX", "0+3", 20],
-      ["F", "EX", "0+3+5", 20],
       ["F", "EX", "3+5", 20],
       ["F", "EX", "0+5", 20],
+      ["B", "SUPER", "0+3+5", 50],
       ["B", "EX", "0+3", 20],
-      ["B", "EX", "0+3+5", 20],
       ["B", "EX", "3+5", 20],
       ["B", "EX", "0+5", 20],
 
@@ -750,12 +773,12 @@ function Player(data) {
       ["F", "MP", "3", 18],
       ["F", "HP", "5", 20],
 
+      ["F", "SUPER", "1+2+7", 50],
       ["F", "EX", "1+2", 20],
-      ["F", "EX", "1+2+7", 20],
       ["F", "EX", "2+7", 20],
       ["F", "EX", "1+7", 20],
+      ["B", "SUPER", "1+2+7", 50],
       ["B", "EX", "1+2", 20],
-      ["B", "EX", "1+2+7", 20],
       ["B", "EX", "2+7", 20],
       ["B", "EX", "1+7", 20],
 
@@ -1147,11 +1170,13 @@ function Player(data) {
         // console.log("what I matched", whatImatched);
         // console.log("what I want", whatIwant);
         // console.log(whatImatched.join(""), whatIwant.join("").replace("+", ""));
-        var whatImatchedIsWhatIwant = whatImatched.join("") === whatIwant.join("").replace("+", "");
+        var whatImatchedJoined = whatImatched.join("");
+        var whatIwantJoined = whatIwant.join("").replace("+", "");
+        var whatImatchedIsWhatIwant = whatImatchedJoined === whatIwantJoined;
         if(whatImatchedIsWhatIwant) {
           var text = action.displayName ? action.btn + " " + action.displayName : action.name;
           speaker.setText(text);
-          console.log("what I matched is what I want", whatImatchedIsWhatIwant, text);
+          console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
           speaker.speak();
           this.setActionableState("input", {
             canTakeInput: false,
@@ -1182,6 +1207,7 @@ function Player(data) {
       ];
 
       // if the move(matched by patter) exist
+      var both = false, buttonActions;
       if(move) {
         keysToCheck.map(key => {
           if(!willAdd) return;
@@ -1196,35 +1222,38 @@ function Player(data) {
             // we'll check the puppet's inputs for these keys
             // console.log(key, move[key]);
             if(realType(move[key]) === "object") {
-              if(realType(move[key][input.dir]) === "array") {
-                place = move[key][input.dir].indexOf(input[key]);
-
-                if( place < 0 ) {
-                  console.log("wont add");
-                  willAdd = false;
-                  place = null;
+              if(realType(move[key][input.dir]) === "object") {
+                if(move[key][input.dir].both) {
+                  both = true;
+                  if(input.btnNum.match(/[035]/)) {
+                    buttonActions = "punches";
+                  } else {
+                    buttonActions = "kicks";
+                  }
+                  checkFault(move[key][input.dir][buttonActions]);
                 }
               } else {
-                if( move[key][input.dir] !== input[key] ) {
-                  console.log("wont add");
-                  willAdd = false;
+                checkFault(move[key][input.dir]);
+              }
+              function checkFault(data) {
+                if(realType(data) === "array") {
+                  place = data.indexOf(input[key]);
+
+                  if( place < 0 ) {
+                    // console.log(input);
+                    // console.log("wont add", data, input[key], place);
+                    willAdd = false;
+                    place = null;
+                  }
+                } else {
+                  if( data !== input[key] ) {
+                    // console.log("wont add", data, input[key]);
+                    willAdd = false;
+                  }
                 }
               }
             } else {
-                if(realType(move[key]) === "array") {
-                place = move[key].indexOf(input[key]);
-
-                if( place < 0 ) {
-                  console.log("wont add");
-                  willAdd = false;
-                  place = null;
-                }
-              } else {
-                  if( move[key] !== input[key] ) {
-                  console.log("wont add");
-                  willAdd = false;
-                }
-              }
+              console.error("format error: not type object. found type", realType(move[key]));
             }
           } else {
             console.log("No key:", key, move, move[key]);
@@ -1232,14 +1261,17 @@ function Player(data) {
         });
       } else {
         // if the move(matched by patter) doesn't exist
-        willAdd = false;
+        return;
       }
 
-      // if(input.btn.match("K")) console.log(willAdd, input.btnNum, move);
+      var moveType = input.btn === "SUPER" ? "sup" : "norm";
+
       if(willAdd) {
+        var displayName = both ? move.displayName[input.dir][buttonActions][moveType] : move.displayName[input.dir][moveType];
+        if(!displayName) return; // no add
         // console.log(input);
         newActionsArray.push(Object.assign(input, {
-          displayName: input.dir ? move.displayName[input.dir] || move.displayName : move.displayName,
+          displayName,
           recover: move.recovery || input.recovery
         }));
       }
