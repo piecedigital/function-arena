@@ -685,43 +685,43 @@ function setPuppet(charName) {
   }
   var characters = {
     ryu: {
-      inputs: {
-        // DQC: {
-        //   dir: {
-        //     F: "F"
-        //   },
-        //   btnNum: {
-        //     F: buttons.punchesNum
-        //   },
-        //   displayName: {
-        //     F: {
-        //       sup: "Shinku Hadouken 2"
-        //     }
-        //   },
-        //   moveFuncs: {
-        //     F: {
-        //       sup: function() { console.log("performing move:", "Shinku Hadouken 2"); }
-        //     }
-        //   }
-        // },
+      specials: {
         Z: {
-          // pattern: "Z",
           dir: {
             F: "F"
           },
           btnNum: {
             F: buttons.punchesNum
           },
-          displayName: {
+          moveData: {
             F: {
-              norm: "Shoryuken",
-              sup: "Shin Shoryuken",
-            }
-          },
-          moveFuncs: {
-            F: {
-              norm: function() { console.log("performing move:", "Shoryuken"); },
-              sup: function() { console.log("performing move:", "Shin Shoryuken"); },
+              norm: {
+                displayName: "Shoryuken",
+                frameData: {
+                  SU: 4,
+                  A: 3,
+                  R: 34
+                },
+                func: function() { console.log("performing move:", this.displayName); },
+              },
+              ex: {
+                displayName: "Shoryuken",
+                frameData: {
+                  SU: 4,
+                  A: 3,
+                  R: 20
+                },
+                func: function() { console.log("performing move:", "EX", this.displayName); },
+              },
+              sup: {
+                displayName: "Shin Shoryuken",
+                frameData: {
+                  SU: 3,
+                  A: 3,
+                  R: 50
+                },
+                func: function() { console.log("performing move:", this.displayName); },
+              },
             }
           }
         },
@@ -738,31 +738,76 @@ function setPuppet(charName) {
               kicks: buttons.kicksNum
             }
           },
-          displayName: {
+          moveData: {
             B: {
-              norm: "Tatsumaki Senpukyaku",
-            },
-            F: {
-              punches: {
-                norm: "Hadouken",
-                sup: "Shinku Hadouken"
+              norm: {
+                displayName: "Tatsumaki Senpukyaku",
+                frameData: {
+                  SU: 5,
+                  A: 5,
+                  R: 30
+                },
+                func: function() { console.log("performing move:", this.displayName); },
               },
-              kicks: {
-                norm: "Joudan Sokutogeri",
+              ex: {
+                displayName: "Tatsumaki Senpukyaku",
+                frameData: {
+                  SU: 5,
+                  A: 5,
+                  R: 30
+                },
+                func: function() { console.log("performing move:", "EX", this.displayName); },
               }
-            }
-          },
-          moveFuncs: {
-            B: {
-              norm: function() { console.log("performing move:", "Tatsumaki Senpukyaku"); },
             },
             F: {
               punches: {
-                norm: function() { console.log("performing move:", "Hadouken"); },
-                sup: function() { console.log("performing move:", "Shinku Hadouken"); }
+                norm: {
+                  displayName: "Hadouken",
+                  frameData: {
+                    SU: 5,
+                    A: 5,
+                    R: 30
+                  },
+                  func: function() { console.log("performing move:", this.displayName); },
+                },
+                ex: {
+                  displayName: "Hadouken",
+                  frameData: {
+                    SU: 5,
+                    A: 5,
+                    R: 30
+                  },
+                  func: function() { console.log("performing move:", "EX", this.displayName); },
+                },
+                sup: {
+                  displayName: "Shinku Hadouken",
+                  frameData: {
+                    SU: 5,
+                    A: 5,
+                    R: 30
+                  },
+                  func: function() { console.log("performing move:", this.displayName); }
+                }
               },
               kicks: {
-                norm: function() { console.log("performing move:", "Joudan Sokutogeri"); },
+                norm: {
+                  displayName: "Joudan Sokutogeri",
+                  frameData: {
+                    SU: 5,
+                    A: 5,
+                    R: 30
+                  },
+                  func: function() { console.log("performing move:", this.displayName); },
+                },
+                ex: {
+                  displayName: "Joudan Sokutogeri",
+                  frameData: {
+                    SU: 5,
+                    A: 5,
+                    R: 30
+                  },
+                  func: function() { console.log("performing move:", "EX", this.displayName); },
+                }
               }
             }
           }
@@ -772,36 +817,66 @@ function setPuppet(charName) {
         F: {
           // LP: {
           //   displayName: "forward LP",
+          //   frameData: {
+          //     SU: 3,
+          //     A: 3,
+          //     R: 11
+          //   },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           MP: {
             displayName: "Collarbone Breaker",
+            frameData: {
+              SU: 3,
+              A: 3,
+              R: 11
+            },
             func: function () {
               console.log("performing command normal:", this.displayName);
             }
           },
           HP: {
             displayName: "Solar Plexus Strike",
+            frameData: {
+              SU: 3,
+              A: 3,
+              R: 11
+            },
             func: function () {
               console.log("performing command normal:", this.displayName);
             }
           },
           // LK: {
           //   displayName: "forward LK",
+          //   frameData: {
+          //     SU: 3,
+          //     A: 3,
+          //     R: 11
+          //   },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // MK: {
           //   displayName: "forward MK",
+          //   frameData: {
+          //     SU: 3,
+          //     A: 3,
+          //     R: 11
+          //   },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // HK: {
           //   displayName: "forward HK",
+          //   frameData: {
+          //     SU: 3,
+          //     A: 3,
+          //     R: 11
+          //   },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
@@ -810,36 +885,66 @@ function setPuppet(charName) {
         B: {
           // LP: {
           //   displayName: "back LP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // MP: {
           //   displayName: "back MP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // HP: {
           //   displayName: "back HP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // LK: {
           //   displayName: "back MK",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           // MK: {
           //   displayName: "back MK",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           //   func: function () {
           //     console.log("performing command normal:", this.displayName);
           //   }
           // },
           HK: {
             displayName: "Axe Kick",
+            frameData: {
+              SU: 3,
+              A: 3,
+              R: 11
+            },
             func: function () {
               console.log("performing command normal:", this.displayName);
             }
@@ -849,36 +954,66 @@ function setPuppet(charName) {
       normals: {
         LP: {
           displayName: "LP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
         },
         MP: {
           displayName: "MP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
         },
         HP: {
           displayName: "HP",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
         },
         LK: {
           displayName: "LK",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
         },
         MK: {
           displayName: "MK",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
         },
         HK: {
           displayName: "HK",
+          frameData: {
+            SU: 3,
+            A: 3,
+            R: 11
+          },
           func: function () {
             console.log("performing normal:", this.displayName);
           }
@@ -1185,7 +1320,7 @@ function Player(data) {
       // var keyOrder = [0,1,3,2,5,7];
       keyOrder.map(key => {
         var btn = inputs.onePress[key] ? key : null;
-        console.log(key, typeof btn, btn, inputs.onePress[key]);
+        // console.log(key, typeof btn, btn, inputs.onePress[key]);
 
         if(typeof btn !== "number") return;
 
@@ -1243,7 +1378,7 @@ function Player(data) {
 
     // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
     if(parentArray.length > 0) {
-      console.log(parentArray);
+      // console.log(parentArray);
       padInfo.recordedInputs.push(parentArray);
       if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
       padInfo.readCount++;
@@ -1318,9 +1453,10 @@ function Player(data) {
           if(!button) return;
 
           if(this.puppet) {
-            var normals = direction ? this.puppet.commandNormals[direction] : this.puppet.normals;
+            var commandNormals = this.puppet.commandNormals[direction] || {};
+            var normals = this.puppet.normals;
             if(!normals) return;
-            var action = normals[button];
+            var action = commandNormals[button] || normals[button];
             if(action) {
               console.log("do normal");
               // console.log(action);
@@ -1473,10 +1609,10 @@ function Player(data) {
     this.actionsArray.map(input => {
       var willAdd = true;
 
-      var puppetInputs = this.puppet.inputs;
+      var puppetSpecials = this.puppet.specials;
       // a puppet(character) specific patter will be the key on the character data
       // this patter is used to capture the puppet's moves
-      var move = puppetInputs[input.pattern];
+      var move = puppetSpecials[input.pattern];
       var keysToCheck = [
         // "pattern",
         "dir",
@@ -1541,16 +1677,21 @@ function Player(data) {
         return;
       }
 
-      var moveType = input.btn === "SUPER" ? "sup" : "norm";
+      var moveType = input.btn === "SUPER" ? "sup" : input.btn === "EX" ? "ex" : "norm";
 
       if(willAdd) {
-        var displayName = both ? move.displayName[input.dir][buttonActions][moveType] : move.displayName[input.dir][moveType];
-
+        var moveData = both ? move.moveData[input.dir][buttonActions][moveType] : move.moveData[input.dir][moveType];
         // this works in determining if a move has super and/or normal
-        if(!displayName) return; // no add
+        // console.log("Move Data:", moveData);
+        if(!moveData) return; // no add
 
-        var moveFunc = both ? move.moveFuncs[input.dir][buttonActions][moveType] : move.moveFuncs[input.dir][moveType];
-        var moveRecovery = both ? (move.moveRecovery ? move.moveRecovery[input.dir][buttonActions][moveType] : null) : (move.moveRecovery ? move.moveRecovery[input.dir][moveType] : null);
+        var displayName = moveData.displayName;
+        var moveFunc = moveData.func;
+        var frameData = moveData.frameData;
+        var moveRecovery;
+        if(frameData) {
+          moveRecovery = frameData.SU + frameData.A + frameData.R;
+        }
 
         newActionsArray.push(Object.assign(input, {
           displayName,
