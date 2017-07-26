@@ -6,10 +6,10 @@ I should work on the mechanics in pieces. Here I'll make a list of what to proto
 ## Things To Prototype
 
 - Characters
-  - combos
-    - Figure out a universal solution for creating combos. Something that makes it easy to plug in new characters at a basic level
-      - Read input
-      - Makes action based on property
+  - moves
+    - Figure out a universal solution for creating moves. Something that makes it easy to plug in new characters at a basic level
+      - Read input **ok**
+      - Makes action based on property **ok**
       - Next move in a combo based on some variable state?
   - Movement
     - Make sure there's collision with Platform and walls

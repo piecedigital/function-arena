@@ -101,6 +101,9 @@ var speaker = (function () {
   return {
     speak: function () {
       // msg.pitch = Math.random() * 2;
+      if(speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
       speechSynthesis.speak(msg)
     },
     setText: function (text) {
@@ -683,6 +686,24 @@ function setPuppet(charName) {
   var characters = {
     ryu: {
       inputs: {
+        // DQC: {
+        //   dir: {
+        //     F: "F"
+        //   },
+        //   btnNum: {
+        //     F: buttons.punchesNum
+        //   },
+        //   displayName: {
+        //     F: {
+        //       sup: "Shinku Hadouken 2"
+        //     }
+        //   },
+        //   moveFuncs: {
+        //     F: {
+        //       sup: function() { console.log("performing move:", "Shinku Hadouken 2"); }
+        //     }
+        //   }
+        // },
         Z: {
           // pattern: "Z",
           dir: {
@@ -912,6 +933,33 @@ function Player(data) {
     // add inputs
     // HCB & HCF
     // !!! null !!!
+    // DQCB & DQCF
+    actionVariants.map(([d, btn, btnNum, recovery]) => {
+      var pattern = "DQC";
+      var input = d === "F" ? ["d", "df", "f", "d", "df", "f"] : ["d", "db", "b", "d", "db", "b"];
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([btnNum])
+        }
+      );
+      this.actionsArray.push(
+        {
+          pattern,
+          dir: d,
+          btn,
+          btnNum,
+          name: pattern + d + btn,
+          recovery,
+          input: input.concat([input.pop() + "+" + btnNum])
+        }
+      );
+    });
     // HCB & HCF
     actionVariants.map(([d, btn, btnNum, recovery]) => {
       var pattern = "HC";
@@ -1075,7 +1123,25 @@ function Player(data) {
 
     // console.log(inputs);
     if(inputs.depressed) {
-      // if 3 punch macro is
+      // 3 kick macro is pressed
+      if(inputs.depressed[6]) {
+        // check if individual kicks are pressed
+        if(
+          inputs.depressed[1] &&
+          inputs.depressed[2] &&
+          inputs.depressed[7]
+        ) {
+          // delete the macro input
+          if(inputs.onePress) delete inputs.onePress[6];
+        } else {
+          // add the individual inputs
+          inputs.depressed[7] = true;
+          inputs.depressed[2] = true;
+          inputs.depressed[1] = true;
+        }
+      }
+
+      // if 3 punch macro is pressed
       if(inputs.depressed[4]) {
         // check if individual punches are pressed
         if(
@@ -1087,76 +1153,43 @@ function Player(data) {
           if(inputs.onePress) delete inputs.onePress[4];
         } else {
           // add the individual inputs
-          inputs.depressed[0] = true;
-          inputs.depressed[3] = true;
           inputs.depressed[5] = true;
-        }
-      }
-
-      // 3 kick macro
-      if(inputs.depressed[6]) {
-        if(
-          inputs.depressed[1] &&
-          inputs.depressed[2] &&
-          inputs.depressed[7]
-          ) {
-          if(inputs.onePress) delete inputs.onePress[6];
-        } else {
-          inputs.depressed[1] = true;
-          inputs.depressed[2] = true;
-          inputs.depressed[7] = true;
+          inputs.depressed[3] = true;
+          inputs.depressed[0] = true;
         }
       }
     }
 
     if(inputs.onePress) {
-      if(inputs.onePress[4]) {
-        inputs.onePress[0] = true;
-        inputs.onePress[3] = true;
-        inputs.onePress[5] = true;
-        delete inputs.onePress[4];
-      }
       if(inputs.onePress[6]) {
-        inputs.onePress[1] = true;
-        inputs.onePress[2] = true;
         inputs.onePress[7] = true;
+        inputs.onePress[2] = true;
+        inputs.onePress[1] = true;
         delete inputs.onePress[6];
       }
+      if(inputs.onePress[4]) {
+        inputs.onePress[5] = true;
+        inputs.onePress[3] = true;
+        inputs.onePress[0] = true;
+        delete inputs.onePress[4];
+      }
       // console.log(inputs.onePress);
-      Object.keys(inputs.onePress).map(btn => {
-        // if(inputs.onePress && inputs.onePress[btn]) return;
 
-        // var configBtn = getButton(padInfo, btn);
+      // maintains the other of the keys
+      // kicks > punches
+      // hard > light
+      var keyOrder = [0,3,5,1,2,7];
+      // alternative: maintains the other of the keys
+      // hard > light
+      // kicks > punches
+      // var keyOrder = [0,1,3,2,5,7];
+      keyOrder.map(key => {
+        var btn = inputs.onePress[key] ? key : null;
+        console.log(key, typeof btn, btn, inputs.onePress[key]);
 
-        // if(inputs.depressed[getButton(padInfo, 4)]) {
-        //   switch (configBtn) {
-        //     case 0:
-        //     case 3:
-        //     case 5:
-        //       delete inputs.onePress[configBtn];
-        //       return;
-        //   }
-        // }
-        // if(inputs.depressed[getButton(padInfo, 6)]) {
-        //   switch (configBtn) {
-        //     case 1:
-        //     case 2:
-        //     case 7:
-        //       delete inputs.onePress[configBtn];
-        //       return;
-        //   }
-        // }
-        // var elem = document.createElement("span");
-        // elem.className = "btn-input";
-        // elem.dataset.btn = btn;
-        // var img = getInputImage(configBtn);
-        //
-        // // console.log(img);
-        // elem.appendChild(img);
-        // parentElem.appendChild(elem);
+        if(typeof btn !== "number") return;
 
-        // parentArray.push(btn);
-        parentArray.push(getButton(padInfo, btn).toString());
+        parentArray.push(getButton(padInfo, btn.toString()).toString());
       });
     }
     // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
@@ -1210,28 +1243,32 @@ function Player(data) {
 
     // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
     if(parentArray.length > 0) {
+      console.log(parentArray);
       padInfo.recordedInputs.push(parentArray);
       if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
       padInfo.readCount++;
+      padInfo.retireRecordedTick = padInfo.retireRecordedFrameTime;
       showReadCount(padInfo.readCount, padInfo.maxReadCount);
+
+      // remove the current input after time
       setTimeout(function () {
         var index = padInfo.recordedInputs.indexOf(parentArray);
         if(index >= 0) padInfo.recordedInputs[index] = null;
         padInfo.readCount--;
         if(padInfo.readCount < 0) padInfo.readCount = 0;
         showReadCount(padInfo.readCount, padInfo.maxReadCount);
-      }, padInfo.retireRecordedFrameTime);
+      },  padInfo.retireRecordedFrameTime);
     }
     displayInputs(parentArray, padInfo);
-    this.captureSpecialMove(padInfo);
+    this.captureMove(padInfo);
   }
 
-  this.captureSpecialMove = function(padInfo) {
+  this.captureMove = function(padInfo) {
     // this creates an array which basically represets directions
     // the first index is the left, and the second index is the right
-    // that means that if the player is facing right "dr" = `d${dir[1]}` = "df" (down-forward)
-    // vice versa, if the player is facing left "dr" = `d${dir[0]}` = "db" (down-back)
-    var dir = this.facing === "right" ? ["b", "f"] : ["f", "b"];
+    // that means that if the player is facing right "dr" = `d${faceDirectionTransformGuide[1]}` = "df" (down-forward)
+    // vice versa, if the player is facing left "dr" = `d${faceDirectionTransformGuide[0]}` = "db" (down-back)
+    var faceDirectionTransformGuide = this.facing === "right" ? ["b", "f"] : ["f", "b"];
 
     var movesCaptured = {
       "SUPER": null,
@@ -1241,15 +1278,17 @@ function Player(data) {
 
     var performing = false;
 
+    // pick the higest number to read the inputs
     var record = padInfo.recordedInputs;
-    // var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
-    // var read = maxRead > whatIwant.length ? padInfo.readCount : whatIwant.length;
+    var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
+    var read = maxRead;
+    var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
     var performMove = function(movesCaptured) {
       var keys = Object.keys(movesCaptured).filter(n => !!movesCaptured[n]);// ["SUPER", "EX", "NORM"]
       var whatImWorkingWith = record.slice(padInfo.maxReadCount * -1);
-      // console.log(movesCaptured);
-      var meterOptions = [0,100,200,300];// temporary
+      var meterOptions = [300];// temporary
+      // var meterOptions = [0,100,200,300];// temporary
       var meterInd = Math.floor(Math.random() * meterOptions.length);
       var meter = meterOptions[meterInd];
 
@@ -1267,9 +1306,7 @@ function Player(data) {
         var singleFrameInputs = record.slice(-1)[0];
 
         if(singleFrameInputs && singleFrameInputs.length >= 1) {
-          // console.log("get a normal:", singleFrameInputs);
-          var direction = normalizeDirection(singleFrameInputs[0], dir);
-          // console.log("DIR", direction);
+          var direction = normalizeDirection(singleFrameInputs[0], faceDirectionTransformGuide);
           if(direction && direction.match(/^[a-z]+$/)) {
             direction = direction.toUpperCase();
           } else {
@@ -1278,14 +1315,10 @@ function Player(data) {
           }
 
           var button = buttonNumToButtonTxt(singleFrameInputs[singleFrameInputs.length - 1]);
-          // console.log(direction, button);
           if(!button) return;
 
           if(this.puppet) {
-            // console.log(direction,button,this.puppet.normals[direction][button]);
-            // if(!direction) console.log("no direction. very normal normal");
             var normals = direction ? this.puppet.commandNormals[direction] : this.puppet.normals;
-            // console.log("normals", direction, normals, this.puppet);
             if(!normals) return;
             var action = normals[button];
             if(action) {
@@ -1306,7 +1339,7 @@ function Player(data) {
           // case "NORM":
           default:
         }
-        var text = (type || "") + " " + action.displayName;
+        var text = (action.btn ? action.btn + " " : "") + action.displayName;
         console.log(meter, text);
         speaker.setText(text);
         speaker.speak();
@@ -1320,8 +1353,8 @@ function Player(data) {
       // console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
     }.bind(this);
 
-    this.activeActionsArray.slice(0,1).map(action => {
-    // this.activeActionsArray.map((action, actionInd) => {
+    // this.activeActionsArray.slice(0,1).map(action => {
+    this.activeActionsArray.map((action, actionInd) => {
       if(!this.canTakeInput) return;
       // var action = this.activeActionsArray[actionInd];
       var occupied = false, alreadyUsed = false;
@@ -1340,92 +1373,87 @@ function Player(data) {
         var whatIwantJoined = whatIwant.join("").replace(/\+/g, "");
 
         // pick the higest number to read the inputs
-        // console.log(padInfo.readCount, whatIwant.length, padInfo.readCount < whatIwant.length);
-        var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
-        var read = maxRead > whatIwant.length ? padInfo.readCount : whatIwant.length;
-        var whatImWorkingWith = record.slice( (read+5) * -1 ).filter(n => !!n);
-        // console.log(whatImWorkingWith, record);
+        // var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
+        // var read = maxRead;
+        // var read = maxRead > whatIwant.length ? padInfo.readCount : whatIwant.length;
+        // var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
         var whatImatched = [];
         var discrepencies = 0, maxDiscrepencies = 2;
 
+        // now that it has the recorded inputs it needs
         for(ind = whatImWorkingWith.length-1; ind >= 0; ind--) {
           if(discrepencies >= maxDiscrepencies) break;
           var inputs = whatImWorkingWith[ind];
           if(inputs) {
-            // console.log(whatIwant);
+            // this is the input that we will be comparing against the current selection of inputs
             var whatIwantPopped = whatIwant.pop();
-            // console.log(whatIwantPopped);
-            // this is where it makes use of the "dir" variable, changing the inputs to represent faces rather than
-            // console.log(inputs);
+
+            // this is where it makes use of the "faceDirectionTransformGuide" variable, changing the inputs to represent the direction the character is facing rather than a static direction
+            // e.g., dr (down-right) > df (down-forward), if the user is facing to the right of the screen
             var alteredInputs = inputs.map(input => {
-              var newInput = normalizeDirection(input, dir);
-              // console.log("ALTER:", input, newInput, dir);
+              var newInput = normalizeDirection(input, faceDirectionTransformGuide);
               return newInput;
             });
-            // console.log(alteredInputs);
+
             var placeArr = [];
 
             var place = -1;
-            // console.log(whatImWorkingWith,whatIwantPopped);
+            // if this variable is falsey then it wont work what it's been given to work with, and the loop is dropped
             if(!whatIwantPopped) {
-              // console.log("skipping", whatIwantPopped);
-              continue;
+              // continue;
+              break;
             }
             if(whatIwantPopped.match("\\+")) {
+              // sometimes a single input will have multiple button inputs
+              // this is there so that they are all checked for existance at once
+              // it's comparing this array ["0", "3", "5"] to what I want here in this single index array ["0+3+5"]
               var split = whatIwantPopped.split("+");
-              // console.log(split, alteredInputs);
               split.map(input => {
                 place = alteredInputs.indexOf(input);
                 placeArr.push(place);
                 // console.log(input, place, alteredInputs);
                 if(place >= 0) whatImatched.push(input);
               });
-              // console.log(place);
-              // whatIwantPopped = split.shift();
-              // whatIwant = whatIwant.concat(split);
             } else {
+              // no pluys signs? then this is a very normal array requiring very normal checks
               place = alteredInputs.indexOf(whatIwantPopped);
               placeArr.push(place);
               // console.log(whatIwantPopped, alteredInputs, place);
               if(place >= 0) whatImatched.unshift(whatIwantPopped);
-              // console.log(place);
             }
             if(place === -1) {
+              // when there is no match for the desired input then give it a "strike".
+              discrepencies++;
+              // in this instance it'll try to work with 'whatIwant' again
               whatIwant.push(whatIwantPopped);
-              discrepencies++
             };
             // console.log(placeArr, whatIwantPopped);
-          } else {
+            } else {
+            // when there is no match for the desired input then give it a "strike".
             discrepencies++;
           }
           // if(whatImatched.length > 0) console.log(whatImatched);
-          // console.log(ind);
         };
+        // at x strikes (maxDiscrepencies) the whole checking process is dropped
         if(discrepencies >= maxDiscrepencies) {
-          return;// console.warn("too many discrepencies:", discrepencies);
+          return;
         }
 
         var whatImatchedJoined = whatImatched.join("");
         var whatImatchedIsWhatIwant = whatImatchedJoined === whatIwantJoined;
-        // console.log("what i got", whatImWorkingWith);
-        // console.log("what I matched", whatImatched);
-        // console.log("what I want", whatIwant);
-        // console.log("whatImWorkingWith", whatImWorkingWith.toString() || null, whatImatchedJoined || null, whatIwantJoined || null);
-        // console.log(whatImatchedJoined, whatIwantJoined);
-        // console.log("runs");
+
         if(whatImatchedIsWhatIwant) {
+          // the movesCaptured object will hold up to 3 types of specials: normal, EX, and SUPER
+          // this is determined by the 'btn' key on the 'action'
           switch (action.btn) {
             case "SUPER": movesCaptured.SUPER = action; break;
             case "EX": movesCaptured.EX = action; break;
             default: movesCaptured.NORM = action; break;
           }
           var text = action.displayName ? action.btn + " " + action.displayName : action.name;
-          // speaker.setText(text);
-          // console.log(discrepencies);
-          // speaker.speak();
-          // console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
-          // console.log(movesCaptured);
+
+          // if all available slots in the 'movesCaptured' object are full, stop everything and just perform a move
           if(!!movesCaptured.SUPER && !!movesCaptured.EX && !!movesCaptured.NORM) {
             performing = true;
             performMove(movesCaptured);
@@ -1518,14 +1546,16 @@ function Player(data) {
       if(willAdd) {
         var displayName = both ? move.displayName[input.dir][buttonActions][moveType] : move.displayName[input.dir][moveType];
 
+        // this works in determining if a move has super and/or normal
         if(!displayName) return; // no add
 
         var moveFunc = both ? move.moveFuncs[input.dir][buttonActions][moveType] : move.moveFuncs[input.dir][moveType];
+        var moveRecovery = both ? (move.moveRecovery ? move.moveRecovery[input.dir][buttonActions][moveType] : null) : (move.moveRecovery ? move.moveRecovery[input.dir][moveType] : null);
 
         newActionsArray.push(Object.assign(input, {
           displayName,
           moveFunc,
-          recovery: move.recovery || input.recovery
+          recovery: moveRecovery || input.recovery
         }));
       }
 
@@ -1546,11 +1576,11 @@ function Player(data) {
     return btn ? buttons[btn.toString()] : null;
   }
 
-  function normalizeDirection(input, dir) {
+  function normalizeDirection(input, faceDirectionTransformGuide) {
     if(input.match("r")) {
-      return input.replace("r", dir[1]) || input;
+      return input.replace("r", faceDirectionTransformGuide[1]) || input;
     } else if(input.match("l")){
-      return input.replace("l", dir[0]) || input;
+      return input.replace("l", faceDirectionTransformGuide[0]) || input;
     }
     return input;
   }
