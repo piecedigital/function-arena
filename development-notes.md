@@ -10,8 +10,10 @@ I should work on the mechanics in pieces. Here I'll make a list of what to proto
     - Figure out a universal solution for creating moves. Something that makes it easy to plug in new characters at a basic level
       - Read input **ok**
       - Makes action based on property **ok**
-      - Next move in a combo based on some variable state?
+      - Most specials and normals will be cancellable
   - Movement
+    - walking - need a state variable for this
+    - Dashing - need a state variable for this
     - Make sure there's collision with Platform and walls
     - Jumping
   - Hit box and hurt box collisions
@@ -31,7 +33,7 @@ I should work on the mechanics in pieces. Here I'll make a list of what to proto
 
 - Assets will be drawn on different layers
   - Layers
-    - Canvas
+    - Canvas (3D, WebGL)
       - Background
       - Platform
       - Rear effects
@@ -39,3 +41,7 @@ I should work on the mechanics in pieces. Here I'll make a list of what to proto
       - Front effects (and box data)
     - HTML
       - UI
+
+### Aesthetic
+
+I will be attempting hand draw animation. Skullgirls will be my inspiration.

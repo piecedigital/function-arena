@@ -172,19 +172,6 @@ window.addEventListener("gamepaddisconnected", function(e) {
 });
 
 (function () {
-  function getPads() {
-    var pads = navigator.getGamepads();
-    Object.keys(pads).map(function (num) {
-      if(pads[num]) {
-        var name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
-
-        // console.log("Gamepad Found!");
-        if(!gamepads[name]) addPad({
-          gamepad: pads[num]
-        });
-      }
-    });
-  }
   getPads();
   setInterval(getPads, 1000/60);
   makeCanvas();
@@ -195,6 +182,20 @@ window.addEventListener("gamepaddisconnected", function(e) {
     framesCounted = 0;
   }, 1000);
 })()
+
+function getPads() {
+  var pads = navigator.getGamepads();
+  Object.keys(pads).map(function (num) {
+    if(pads[num]) {
+      var name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
+
+      // console.log("Gamepad Found!");
+      if(!gamepads[name]) addPad({
+        gamepad: pads[num]
+      });
+    }
+  });
+}
 
 function addPad(e) {
   // console.log(e.gamepad);
@@ -246,7 +247,7 @@ function addPad(e) {
   opt.dataset.name = name;
   opt.value = name;
   opt.innerText = e.gamepad.id;
-  sticks.appendChild(opt);
+  if(sticks) sticks.appendChild(opt);
 }
 
 function removePad(e) {
@@ -285,6 +286,7 @@ function primaryController(gamepad) {
 
 function getButton(padInfo, btn) {
   // console.log(gamepads[padInfo.name].configuration, btn);
+  console.log(gamepads);
   var value = gamepads[padInfo.name].configuration[btn];
   // console.log(value);
   var returnValue = typeof value === "number" ? parseInt(value) : parseInt(btn);
