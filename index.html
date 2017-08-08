@@ -27,16 +27,16 @@
           <div class="btn btn-9" onclick="startConfig(9)"><span>Select</span></div>
         </div>
         <div class="row">
-          <div class="btn btn-1" onclick="startConfig(1)"></div>
-          <div class="btn btn-4" onclick="startConfig(4)"></div>
-          <div class="btn btn-6" onclick="startConfig(6)"></div>
-          <div class="btn btn-5" onclick="startConfig(5)"></div>
+          <div class="btn btn-1 btn-lp" onclick="startConfig('lp')"></div>
+          <div class="btn btn-4 btn-mp" onclick="startConfig('mp')"></div>
+          <div class="btn btn-6 btn-hp" onclick="startConfig('hp')"></div>
+          <div class="btn btn-5 btn-3p" onclick="startConfig('3p')"></div>
         </div>
         <div class="row">
-          <div class="btn btn-2" onclick="startConfig(2)"></div>
-          <div class="btn btn-3" onclick="startConfig(3)"></div>
-          <div class="btn btn-8" onclick="startConfig(8)"></div>
-          <div class="btn btn-7" onclick="startConfig(7)"></div>
+          <div class="btn btn-2 btn-lk" onclick="startConfig('lk')"></div>
+          <div class="btn btn-3 btn-mk" onclick="startConfig('mk')"></div>
+          <div class="btn btn-8 btn-hk" onclick="startConfig('hk')"></div>
+          <div class="btn btn-7 btn-3k" onclick="startConfig('3k')"></div>
         </div>
       </div>
     </div>
@@ -44,9 +44,12 @@
     <div class="">
       <button type="button" name="button" id='facechange'>Facing: <span id="facing">right</span></button>
     </div>
-    <div class="">
+    <div id="characters">
       <h2>Characters:</h2>
-      <button type="button" name="button" onclick="setPuppet('ryu')">Ryu</button>
+      <div class="options">
+        <div class="player-1-side"></div>
+        <div class="player-2-side"></div>
+      </div>
     </div>
     <div class="inputs">
       <div id="in-view-inputs"></div>

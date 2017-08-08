@@ -133,6 +133,14 @@
   box-shadow: 0 0 0 4px red;
 }
 
+#characters .options {
+  display: flex;
+}
+
+#characters .player-1-side {
+  border-right: 2px solid black;
+}
+
 canvas {
   background: red;
 }
