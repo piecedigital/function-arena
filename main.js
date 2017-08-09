@@ -1107,21 +1107,25 @@ function MakeCanvas(canvasInfo) {
     console.error("cannot find canvas container");
   }
 
-  // var geometry = new THREE.BoxGeometry(1, 0, 1);
-  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
-  // var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
-  // var cube = new THREE.Mesh(geometry, material);
-  var sprite = new THREE.Sprite(material);
-  // cube.position.z = -.5;
-  sprite.scale.set(1, 1, 1);
-  sprite.position.z = -.5;
-  // scene.add(cube);
-  scene.add(sprite);
+  var player = createCube(),
+  cube = createCube();
+  scene.add(cube.mesh);
+  // scene.add(player = createCharacterSprite());
+  scene.add(player.mesh);
+
+  function testIntersect() {
+    var coll = player.bbox.intersectsBox(cube.bbox);
+    if(coll) {
+      cube.hit();
+    } else {
+      cube.noHit();
+    }
+  }
 
   this.renderScene = function () {
     if(document.hasFocus()) {
       renderer.render(scene, camera);
+      testIntersect();
     }
   }
 
@@ -1139,18 +1143,20 @@ function MakeCanvas(canvasInfo) {
   this.rotateCube = function (axis) {
     var axisValuesArray = axis.split("");
     axisValuesArray.map(dir => {
-      sprite.rotation.x += axisDirs.x[dir] || 0;
-      sprite.rotation.z += axisDirs.z[dir] || 0;
+      player.mesh.rotation.x += axisDirs.x[dir] || 0;
+      player.mesh.rotation.z += axisDirs.z[dir] || 0;
     });
+    player.bbox.update();
   }
   this.moveCube = function (dir) {
     // console.log(dir);
     switch (dir) {
-      case "left": sprite.position.x-=.1; break;
-      case "right": sprite.position.x+=.1; break;
-      case "up": sprite.position.z-=.1; break;
-      case "down": sprite.position.z+=.1; break;
+      case "left": player.mesh.position.x-=.1; break;
+      case "right": player.mesh.position.x+=.1; break;
+      case "up": player.mesh.position.z-=.1; break;
+      case "down": player.mesh.position.z+=.1; break;
     }
+    player.bbox.update();
   }
   this.rotateCamera = function (key) {
     switch (key) {
@@ -1174,6 +1180,48 @@ function MakeCanvas(canvasInfo) {
       case "ArrowDown": e.preventDefault(); this.moveCube("down"); break;
     }
   });
+}
+
+function createCube({x,y,z,color} = {
+    x: 0,
+    y: 0,
+    z: -.5,
+    color: 0x00ff00
+  }) {
+  var geometry = new THREE.BoxGeometry(1, 0, 1);
+  var material = new THREE.MeshBasicMaterial({ color });
+  var cube = new THREE.Mesh(geometry, material);
+  cube.position.z = z;
+
+  var bbox = new THREE.Box3(
+    new THREE.Vector3(),
+    new THREE.Vector3()
+  );
+  bbox.setFromObject(cube);
+  bbox.update = function () {
+    bbox.setFromCenterAndSize(cube.position, cube.scale);
+  }
+
+  console.log(cube, bbox);
+  return {
+    mesh: cube,
+    bbox,
+    hit: function () {
+      cube.material.color.setHex(0xff0000);
+    },
+    noHit: function () {
+      cube.material.color.setHex(color);
+    }
+  };
+}
+
+function createCharacterSprite() {
+  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
+  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
+  var sprite = new THREE.Sprite(material);
+  sprite.scale.set(1, 1, 1);
+  sprite.position.z = -.5;
+  return sprite;
 }
 
 function setPuppet(charName, playerID) {
