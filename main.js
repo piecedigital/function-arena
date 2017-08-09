@@ -74,9 +74,13 @@ var realType = function (data) {
 var gamepads = {};
 var configuring = false;
 var knownAxis;
+var canvasScale = .7;
+var canvasScaleMin = .6;
+var canvasScaleMax = 1;
+var canvasScaleValue = .5;
 var canvasInfo = {
-  width: 600,
-  height: 600 * (9/16),
+  width: 1920 * canvasScale * canvasScaleValue,
+  height: 1080 * canvasScale * canvasScaleValue,
   stageWidth: 1200
 }
 var inputImages = {};
@@ -124,6 +128,8 @@ var speaker = (function () {
     }
   }
 })();
+
+var gfxDisplay = new MakeCanvas(canvasInfo);
 
 // create input images
 [
@@ -175,7 +181,6 @@ window.addEventListener("gamepaddisconnected", function(e) {
   populateCharacters();
   getPads();
   setInterval(getPads, 1000/60);
-  makeCanvas();
   gameLoop();
   setInterval(function () {
     // console.log("FPS:", framesCounted);
@@ -848,9 +853,13 @@ function gameLoop() {
       // console.log(returnedInputs);
       // makeInputDisplayElements(gamepads[name], returnedInputs);
       // console.log(padInfo);
-      if(padInfo.player) padInfo.player.receiveInputData(gamepads[name], returnedInputs);
+      if(padInfo.player) {
+        gfxDisplay.rotateCube(returnedInputs.axis);
+        padInfo.player.receiveInputData(gamepads[name], returnedInputs);
+      }
     }
   });
+  gfxDisplay.renderScene();
   var end = Date.now();
   var timeDiff = end-start;
   proctime.innerText = timeDiff;
@@ -1060,18 +1069,96 @@ function getInputImage(configBtn) {
   }
 }
 
-function makeCanvas() {
-  var canvas = document.createElement("canvas");
-  canvas.width = canvasInfo.width;
-  canvas.height = canvasInfo.height;
-  canvasInfo.ctx = canvas.getContext("2d");
+function MakeCanvas(canvasInfo) {
+  // OLD
+  // var canvas = document.createElement("canvas");
+  // canvas.width = canvasInfo.width;
+  // canvas.height = canvasInfo.height;
+  // canvasInfo.ctx = canvas.getContext("2d");
+  //
+  // var cc = document.querySelector(".canvas-container");
+  // if(cc) {
+  //   cc.appendChild(canvas);
+  // } else {
+  //   console.error("cannot find canvas container");
+  // }
+  // NEW
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
+  camera.position.y = 15;
+  camera.rotation.x = 4.75;
 
+  console.log(camera.rotation);
+
+  var renderer = new THREE.WebGLRenderer();
+  renderer.setSize(canvasInfo.width, canvasInfo.height);
   var cc = document.querySelector(".canvas-container");
   if(cc) {
-    cc.appendChild(canvas);
+    cc.appendChild(renderer.domElement);
   } else {
     console.error("cannot find canvas container");
   }
+
+  var geometry = new THREE.BoxGeometry(1,1,1);
+  var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  var cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+
+  this.renderScene = function () {
+    if(document.hasFocus()) {
+      renderer.render(scene, camera);
+    }
+  }
+
+  var axisDirs = {
+    x: {
+      "u": -0.1,
+      "d": 0.1,
+    },
+    z: {
+      "l": -0.1,
+      "r": 0.1,
+    },
+  }
+
+  this.rotateCube = function (axis) {
+    var axisValuesArray = axis.split("");
+    axisValuesArray.map(dir => {
+      cube.rotation.x += axisDirs.x[dir] || 0;
+      cube.rotation.z += axisDirs.z[dir] || 0;
+    });
+  }
+  this.moveCube = function (dir) {
+    console.log(dir);
+    switch (dir) {
+      case "left": cube.position.x-=.1; break;
+      case "right": cube.position.x+=.1; break;
+      case "up": cube.position.z-=.1; break;
+      case "down": cube.position.z+=.1; break;
+    }
+  }
+  this.rotateCamera = function (key) {
+    switch (key) {
+      case "[":
+        camera.rotation.x -= .1;
+        break;
+      case "]":
+        camera.rotation.x += .1;
+        break;
+    }
+    console.log("Camera rotation X:", camera.rotation.x)
+  }
+  document.addEventListener("keydown", e => {
+    // console.log(e);
+    switch (e.key) {
+      case "[": this.rotateCamera("["); break;
+      case "]": this.rotateCamera("]"); break;
+      case "ArrowLeft": e.preventDefault(); this.moveCube("left"); break;
+      case "ArrowRight": e.preventDefault(); this.moveCube("right"); break;
+      case "ArrowUp": e.preventDefault(); this.moveCube("up"); break;
+      case "ArrowDown": e.preventDefault(); this.moveCube("down"); break;
+    }
+  });
 }
 
 function setPuppet(charName, playerID) {
