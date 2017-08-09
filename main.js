@@ -79,8 +79,8 @@ var canvasScaleMin = .6;
 var canvasScaleMax = 1;
 var canvasScaleValue = .5;
 var canvasInfo = {
-  width: 1920 * canvasScale * canvasScaleValue,
-  height: 1080 * canvasScale * canvasScaleValue,
+  width: 1920 * (canvasScale * canvasScaleValue),
+  height: 1080 * (canvasScale * canvasScaleValue),
   stageWidth: 1200
 }
 var inputImages = {};
@@ -1091,7 +1091,8 @@ function MakeCanvas(canvasInfo) {
   }
 
   var scene = new THREE.Scene();
-  var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
+  var camera = new THREE.OrthographicCamera((canvasInfo.width/64) / -2, (canvasInfo.width/64) / 2, (canvasInfo.height/64) / 2, (canvasInfo.height/64) / -2, .1, 1000);
+  // var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
   camera.position.y = 15;
   camera.rotation.x = 4.75;
 
