@@ -34,7 +34,7 @@ I should work on the mechanics in pieces. Here I'll make a list of what to proto
 - Assets will be drawn on different layers
   - Layers
     - Canvas (3D, WebGL)
-      - Background
+      -  Background
       - Platform
       - Rear effects
       - Characters

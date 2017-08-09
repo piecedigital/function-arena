@@ -1107,11 +1107,17 @@ function MakeCanvas(canvasInfo) {
     console.error("cannot find canvas container");
   }
 
-  var geometry = new THREE.BoxGeometry(1,1,1);
-  var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  var cube = new THREE.Mesh(geometry, material);
-  cube.position.z = -.5;
-  scene.add(cube);
+  // var geometry = new THREE.BoxGeometry(1, 0, 1);
+  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
+  // var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
+  // var cube = new THREE.Mesh(geometry, material);
+  var sprite = new THREE.Sprite(material);
+  // cube.position.z = -.5;
+  sprite.scale.set(1, 1, 1);
+  sprite.position.z = -.5;
+  // scene.add(cube);
+  scene.add(sprite);
 
   this.renderScene = function () {
     if(document.hasFocus()) {
@@ -1133,17 +1139,17 @@ function MakeCanvas(canvasInfo) {
   this.rotateCube = function (axis) {
     var axisValuesArray = axis.split("");
     axisValuesArray.map(dir => {
-      cube.rotation.x += axisDirs.x[dir] || 0;
-      cube.rotation.z += axisDirs.z[dir] || 0;
+      sprite.rotation.x += axisDirs.x[dir] || 0;
+      sprite.rotation.z += axisDirs.z[dir] || 0;
     });
   }
   this.moveCube = function (dir) {
     // console.log(dir);
     switch (dir) {
-      case "left": cube.position.x-=.1; break;
-      case "right": cube.position.x+=.1; break;
-      case "up": cube.position.z-=.1; break;
-      case "down": cube.position.z+=.1; break;
+      case "left": sprite.position.x-=.1; break;
+      case "right": sprite.position.x+=.1; break;
+      case "up": sprite.position.z-=.1; break;
+      case "down": sprite.position.z+=.1; break;
     }
   }
   this.rotateCamera = function (key) {
