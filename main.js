@@ -859,7 +859,7 @@ function gameLoop() {
       }
     }
   });
-  gfxDisplay.renderScene();
+  if(gfxDisplay.webglIsAvailable) gfxDisplay.renderScene();
   var end = Date.now();
   var timeDiff = end-start;
   proctime.innerText = timeDiff;
@@ -1070,25 +1070,32 @@ function getInputImage(configBtn) {
 }
 
 function MakeCanvas(canvasInfo) {
-  // OLD
-  // var canvas = document.createElement("canvas");
-  // canvas.width = canvasInfo.width;
-  // canvas.height = canvasInfo.height;
-  // canvasInfo.ctx = canvas.getContext("2d");
-  //
-  // var cc = document.querySelector(".canvas-container");
-  // if(cc) {
-  //   cc.appendChild(canvas);
-  // } else {
-  //   console.error("cannot find canvas container");
-  // }
-  // NEW
+  var cc = document.querySelector(".canvas-container");
+  this.webglIsAvailable = ( function () {
+		try {
+			var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
+		} catch ( e ) {
+			return false;
+		}
+	} )();
+
+  if(!this.webglIsAvailable) {
+    var span = document.createElement("span");
+    span.innerText = "WebGL is not support in your browser.";
+    if(cc) {
+      cc.appendChild(span);
+    } else {
+      console.error("cannot find canvas container");
+    }
+    return;
+  }
+
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
   camera.position.y = 15;
   camera.rotation.x = 4.75;
 
-  console.log(camera.rotation);
+  // console.log(camera.rotation);
 
   var renderer = new THREE.WebGLRenderer();
   renderer.setSize(canvasInfo.width, canvasInfo.height);
@@ -1102,6 +1109,7 @@ function MakeCanvas(canvasInfo) {
   var geometry = new THREE.BoxGeometry(1,1,1);
   var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
   var cube = new THREE.Mesh(geometry, material);
+  cube.position.z = -.5;
   scene.add(cube);
 
   this.renderScene = function () {
@@ -1129,7 +1137,7 @@ function MakeCanvas(canvasInfo) {
     });
   }
   this.moveCube = function (dir) {
-    console.log(dir);
+    // console.log(dir);
     switch (dir) {
       case "left": cube.position.x-=.1; break;
       case "right": cube.position.x+=.1; break;
@@ -1146,7 +1154,7 @@ function MakeCanvas(canvasInfo) {
         camera.rotation.x += .1;
         break;
     }
-    console.log("Camera rotation X:", camera.rotation.x)
+    // console.log("Camera rotation X:", camera.rotation.x)
   }
   document.addEventListener("keydown", e => {
     // console.log(e);
