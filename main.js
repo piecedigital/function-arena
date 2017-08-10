@@ -109,9 +109,9 @@ var speaker = (function () {
   return {
     speak: function () {
       // msg.pitch = Math.random() * 2;
-      if(speechSynthesis.speaking) {
-        speechSynthesis.cancel();
-      }
+      // if(speechSynthesis.speaking) {
+      // }
+      speechSynthesis.cancel();
       speechSynthesis.speak(msg)
     },
     setText: function (text) {
@@ -844,14 +844,38 @@ function getCharacters() {
       stats: {
         hp: 1000,
         stun: 1000,
-        fWalk: 1,
-        bWalk: 1,
-        fDash: 10,
-        bDash: 10,
-        fThrow: 10,
-        bThrow: 10,
-        fJump: 12,
-        bJump: 12
+        fWalk: {
+          name: "Forward Walk",
+          frames: 1
+        },
+        bWalk: {
+          name: "Back Walk",
+          frames: 1
+        },
+        fDash: {
+          name: "Forward Dash",
+          frames: 10
+        },
+        bDash: {
+          name: "Back Dash",
+          frames: 10
+        },
+        fThrow: {
+          name: "Forward Throw",
+          frames: 10
+        },
+        bThrow: {
+          name: "Back Throw",
+          frames: 10
+        },
+        fJump: {
+          name: "Forward Jump",
+          frames: 12
+        },
+        bJump: {
+          name: "Back Jump",
+          frames: 12
+        }
       },
       specials: {
         Z: {
@@ -1497,7 +1521,7 @@ function Player(data) {
     if(!this.puppet) return console.warn("No puppet");
     if(this.recovery > 0) this.recovery--;
     // console.log(this.inputsToPurge);
-    if(this.recovery <= 1) {
+    if(this.recovery === 1) {
       if(this.inputsToPurge) this.inputsToPurge.map((_, ind) => {
         var place = padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]);
         // console.log(padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]));
@@ -1625,10 +1649,10 @@ function Player(data) {
     if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
 
     // console.log(inputs.oneAxis === inputs.axis);
+    // this condition insures that a direction is provided with a button, otherwise there can be a button and no directional input even if the player is holding a direction
     if(
-      // inputs.oneAxis === inputs.axis ||
-      // inputs.onePress
-      inputs.oneAxis
+      inputs.oneAxis === inputs.axis ||
+      inputs.onePress
     ) {
       // if(inputs.oneAxis && inputs.oneAxis !== "n") {
       //   // var elem = document.createElement("span");
@@ -1640,7 +1664,7 @@ function Player(data) {
       //   // parentElem.appendChild(elem);
       //   parentArray.unshift(inputs.axis);
       // }
-      parentArray.unshift(inputs.oneAxis);
+      parentArray.unshift(inputs.axis);
     }
     // console.log(parentArray);
 
@@ -1683,6 +1707,7 @@ function Player(data) {
 
     // pick the higest number to read the inputs
     var record = padInfo.recordedInputs;
+
     // console.log(record.slice(-1));
     var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
     var read = maxRead;
@@ -1696,9 +1721,10 @@ function Player(data) {
       var meterInd = Math.floor(Math.random() * meterOptions.length);
       var meter = meterOptions[meterInd];
 
+      // console.log(keys);
       if(keys.length > 0) {
         // do special
-        console.log("do special");
+        // console.log("do special");
         keys.map(key => {
           var action = movesCaptured[key];
           if(!action) return;
@@ -1710,7 +1736,9 @@ function Player(data) {
         var singleFrameInputs = record.slice(-1)[0];
 
         if(singleFrameInputs && singleFrameInputs.length >= 1) {
+          // console.log( singleFrameInputs);
           var direction = normalizeDirection(singleFrameInputs[0], faceDirectionTransformGuide);
+          // console.log("DIR", direction);
           if(direction && direction.match(/^[a-z]+$/)) {
             direction = direction.toUpperCase();
           } else {
@@ -1728,7 +1756,8 @@ function Player(data) {
             var action = button ? (commandNormals[button] || normals[button]) : null;
             if(action) {
               // do normal
-              console.log("do normal");
+              // console.log("do normal");
+              // console.log(this.puppet, direction, button);
               // console.log(action);
               doAttack.bind(this, action, meter)();
             } else {
@@ -1747,7 +1776,6 @@ function Player(data) {
                     if(direction === "F" || direction === "B") alterDashState(direction, true); break;
                   case "prep":
                     if(direction === "N") {
-                      console.log("prep");
                       alterDashState(direction, true);
                     }
                     break;
@@ -1803,7 +1831,8 @@ function Player(data) {
       function doMovement(action, direction, stats) {
         var xDirection = direction.split("").pop().toLowerCase()
         var capitalAction = action.replace(/(.)/, (_, l) => l.toUpperCase());
-        var text = xDirection + " " + action;
+        var statNode = stats[xDirection + capitalAction] || {};
+        var text = statNode.name || xDirection + " " + action;
         speaker.setText(text);
         speaker.speak();
         // switch (action) {
@@ -1823,7 +1852,7 @@ function Player(data) {
 
         this.setActionableState("input", {
           canTakeInput: false,
-          recovery: stats[xDirection + capitalAction] || 0,
+          recovery: statNode.frames || 0,
           inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
         });
       }
@@ -1920,6 +1949,7 @@ function Player(data) {
         var whatImatchedJoined = whatImatched.join("");
         var whatImatchedIsWhatIwant = whatImatchedJoined === whatIwantJoined;
 
+        // console.log(whatIwantJoined, whatImatchedJoined);
         if(whatImatchedIsWhatIwant) {
           // the movesCaptured object will hold up to 3 types of specials: normal, EX, and SUPER
           // this is determined by the 'btn' key on the 'action'
