@@ -67,6 +67,10 @@ HTMLElement.prototype.removeClass = function(stringOrArray) {
   proceed(type);
 }
 
+Object.prototype.copyObject = function () {
+  return JSON.parse(JSON.stringify(this));
+}
+
 var realType = function (data) {
   return Object.prototype.toString.call(data).split(" ").pop().replace(/.$/, "").toLowerCase();
 }
@@ -189,6 +193,645 @@ window.addEventListener("gamepaddisconnected", function(e) {
   }, 1000);
 })()
 
+function getPads() {
+  var pads = navigator.getGamepads();
+  Object.keys(pads).map(function (num) {
+    if(pads[num]) {
+      var configuration = null;
+      if(pads[num].mapping === "standard") {
+        configuration = {
+          "0": 1, // lp
+          "1": 2, // lk
+          "2": 0 // mk
+        }
+      }
+      var name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
+
+      // console.log("Gamepad Found!");
+      if(!gamepads[name]) addPad({
+        gamepad: pads[num],
+        configuration
+      });
+    }
+  });
+}
+
+function addPad(e) {
+  // console.log(e.gamepad);
+  var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
+  // console.log(name);
+  gamepads[name] = {
+    name: name,
+    index: e.gamepad.index,
+    configuration: e.configuration || {},
+    recordedInputs: [],
+    maxRecordedInputs: 50,
+    readCount: 0,
+    maxReadCount: 10,
+    retireRecordedFrameTime: (1000 / 60) * 50,
+    player: null,
+    axes: {
+      // ind: 9,
+      // u: -1,
+      // ur: -.71,
+      // r: -.43,
+      // dr: -.14,
+      // d: .14,
+      // dl: .43,
+      // l: .71,
+      // ul: 1,
+      ind: 9,
+      "3.29": "n",
+      "-1.00": "u",
+      "-0.71": "ur",
+      "-0.43": "r",
+      "-0.14": "dr",
+      "0.14": "d",
+      "0.43": "dl",
+      "0.71": "l",
+      "1.00": "ul",
+      "-0.03": "n",
+      "12.00": "u",
+      "1215.00": "ur",
+      "15.00": "r",
+      "1315.00": "dr",
+      "13.00": "d",
+      "1314.00": "dl",
+      "14.00": "l",
+      "1214.00": "ul"
+    }
+  };
+  // checkPad(gamepads[name]);
+  var opt = document.createElement("option");
+  opt.dataset.name = name;
+  opt.value = name;
+  opt.innerText = e.gamepad.id;
+  if(sticks) sticks.appendChild(opt);
+}
+
+function removePad(e) {
+  // console.log(e.gamepad);
+  var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
+  delete gamepads[name];
+  sticks.removeChild(document.querySelector("[data-name=" + name + "]"))
+}
+
+function normalizeID(id) {
+  return id.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s/g, "-");
+}
+
+function startConfig(buttonName) {
+  configuring = buttonName;
+  var elem = document.querySelector(".btn-" + buttonName);
+  elem.addClass("configuring");
+}
+
+function setConfig(name, btn) {
+  var map = {
+    lp: 0,
+    mp: 3,
+    hp: 5,
+    "3p": 4,
+    lk: 1,
+    mk: 2,
+    hk: 7,
+    "3k": 6
+  }
+  console.log(configuring, btn);
+  // console.log(humanizeButton(configuring), humanizeButton(btn));
+  gamepads[name].configuration[btn] = map[configuring];
+  // gamepads[name].configuration[configuring] = parseInt(index);
+  var elem = document.querySelector(".btn-" + configuring);
+  elem.removeClass("configuring");
+  configuring = false;
+}
+
+function primaryController(gamepad) {
+  var name;
+  if(gamepad) name = "i" + gamepad.index + "-" + normalizeID(gamepad.id);
+  // console.log(sticks.value, name, sticks.value === name);
+  return sticks.value === name;
+}
+
+function getButton(padInfo, btn) {
+  // console.log(gamepads[padInfo.name].configuration, btn);
+  // console.log(gamepads);
+  var value = gamepads[padInfo.name].configuration[btn];
+  // console.log(value);
+  var returnValue = typeof value === "number" ? parseInt(value) : parseInt(btn);
+  // console.log(returnValue);
+  return returnValue;
+}
+
+function highlightButton(usedButton, released) {
+  var elem = document.querySelector(".btn-" + humanizeButton(usedButton));
+  // if(!elem) return console.error("no elem");
+  if(!elem) return;
+  // console.log(elem, humanizeButton(usedButton));
+  if(released) {
+    elem.removeClass("pressed");
+  } else {
+    elem.addClass("pressed");
+  }
+}
+
+function humanizeButton(btn) {
+  return parseInt(btn) + 1;
+}
+
+function checkPad(padInfo) {
+  // var gamepad = navigator.getGamepads()[gamepadIndex]
+  var gamepadIndex = padInfo.index;
+  var gamepadName = padInfo.name;
+  // console.log(navigator.getGamepads()[gamepadIndex], gamepadName);
+  padInfo.depressed = padInfo.depressed || {};
+  var depressed = padInfo.depressed;
+  padInfo.test = padInfo.test || [];
+
+  var returnData = {};
+
+  // main loop
+  var gamepad = navigator.getGamepads()[gamepadIndex]
+  // if(primaryController(gamepad)) console.log(gamepadName); else return;
+  if(!primaryController(gamepad)) return;
+  var onePress = {}, oneRelease = {};
+  if(gamepad) gamepad.buttons.map(function (btn, ind) {
+    // console.log(btn);
+    if(btn.pressed) {
+      if(!depressed[ind]) {
+        onePress[ind] = true;
+      }
+      depressed[ind] = true;
+    } else {
+      if(depressed[ind]) oneRelease[ind] = true;
+      delete depressed[ind];
+    }
+  });
+
+  if(Object.keys(onePress).length > 0) returnData.onePress = onePress;
+  if(Object.keys(depressed).length > 0) returnData.depressed = depressed;
+  // if(Object.keys(oneRelease).length > 0) returnData.oneRelease = oneRelease;
+
+  buttonsPressedOnce(onePress);
+  buttonsAreDepressedAndAxes(depressed, gamepad.axes);
+  buttonsReleasedOnce(oneRelease);
+  // end loop
+
+  function buttonsPressedOnce(buttons) {
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("pressed", usedButton);
+      // console.log(buttons);
+      if(!padInfo.player) {
+        if(!players.player1) {
+          players.player1 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player1;
+        } else if(!players.player2) {
+          players.player2 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player2;
+        }
+      }
+      if(configuring !== false) {
+        setConfig(gamepadName, usedButton);
+      } else {
+        highlightButton(usedButton);
+      }
+    });
+  }
+  function buttonsAreDepressedAndAxes(buttons, axes) {
+    // console.log("start");
+    var padButtonsObj = {};
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("depressed", usedButton, buttons);
+      if(buttons["12"]) padButtonsObj[12] = 12;
+      if(buttons["14"]) padButtonsObj[14] = 14;
+      if(buttons["13"]) padButtonsObj[13] = 13;
+      if(buttons["15"]) padButtonsObj[15] = 15;
+    });
+    padButtonsArr = Object.keys(padButtonsObj);
+    // console.log(parseInt(padButtonsArr.join("")));
+    if(padButtonsArr.length > 0) axisData([parseInt(padButtonsArr.join(""))]); else axisData(axes);
+    // console.log("end");
+  }
+  function buttonsReleasedOnce(buttons) {
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("released");
+      highlightButton(usedButton, true);
+    });
+  }
+
+  function breakdownButton(buttons, cb) {
+    Object.keys(buttons).map(function (btn) {
+      var usedButton = getButton(padInfo, btn);
+      // console.log(checked, usedButton);
+      // console.log(btn, "(" + (parseInt(btn) + 1) + ")", "Config:", usedButton);
+      cb(usedButton);
+    });
+  }
+
+  function axisData(axes) {
+    // console.log(axes);
+    var axPlus = axes.reduce((m,n) => m + n);
+    // console.log(axPlus);
+    var value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
+    var input = getStickInput(value) || "n";
+    // console.log(value);
+    if(input) returnData.axis = input;
+    if(input && ballTop && !ballTop.hasClass(input)) {
+      returnData.oneAxis = input;
+      // console.log(input);
+      ballTop.removeClass(["n", "u", "ur", "r", "dr", "d", "dl", "l", "ul"]);
+      // console.log(value, input);
+      ballTop.addClass(input);
+      // console.log(value, gamepads[gamepadName].axes[value]);
+    }
+  }
+
+  function getStickInput(value) {
+    return gamepads[gamepadName].axes[value];
+  }
+
+  function convert(data) {
+    var newData = {
+      axis: data.axis,
+    };
+    if(data.oneAxis) newData.oneAxis = data.oneAxis;
+    // console.log(data);
+    ["onePress", "depressed", "oneRelease"].map(state => {
+      var stateData = data[state];
+      if(!stateData) return;
+      var newStateData = {};
+      Object.keys(stateData).map(btn => {
+        newStateData[getButton(padInfo, btn)] = true;
+      });
+
+      newData[state] = newStateData;
+    });
+
+    return newData
+  }
+
+  return convert(returnData);
+}
+
+function gameLoop() {
+  var start = Date.now();
+  Object.keys(gamepads).map(name => {
+    var padInfo = gamepads[name];
+    var returnedInputs = checkPad(padInfo);
+
+    if(returnedInputs && Object.keys(returnedInputs).length > 0) {
+      // console.log(returnedInputs);
+      // makeInputDisplayElements(gamepads[name], returnedInputs);
+      // console.log(padInfo);
+      if(padInfo.player) {
+        padInfo.player.receiveInputData(gamepads[name], returnedInputs);
+      }
+    }
+  });
+  if(gfxDisplay.webglIsAvailable) gfxDisplay.renderScene();
+  var end = Date.now();
+  var timeDiff = end-start;
+  proctime.innerText = timeDiff;
+  framesCounted++;
+  setTimeout(gameLoop, (1000 / 60) - timeDiff);
+}
+
+function showReadCount(readCount, maxReadCount) {
+  window["in-view-inputs"].style.height = (38 * (readCount > maxReadCount ? maxReadCount : readCount)) + "px";
+}
+
+function displayInputs(inputsArray, padInfo) {
+  var parentElem = document.createElement("div");
+
+  // if(inputsArray.length > 0) console.log(inputsArray);
+  inputsArray.map(input => {
+    if( isNaN(parseInt(input)) ) {
+      // letter. axis input
+      var elem = document.createElement("span");
+      elem.className = "axis-input";
+      elem.dataset.axis = input;
+      var img = getInputImage(input);
+      if(!img) return;
+      elem.appendChild(img);
+      parentElem.appendChild(elem);
+    } else
+    if(typeof parseInt(input) === "number") {
+      // number. button input
+      var elem = document.createElement("span");
+      elem.className = "btn-input";
+      elem.dataset.btn = input;
+      var configBtn = parseInt(input);
+      // console.log(input, configBtn);
+      var img, cssBtn = document.createElement("span");
+      cssBtn.className = "css-button";
+      switch (parseInt(configBtn)) {
+        case 8: cssBtn.innerText = "SELECT"; break; // select/back
+        case 9: cssBtn.innerText = "START"; break; // start
+        case 10: cssBtn.innerText = "HOME"; break; // home
+        default: img = getInputImage(configBtn);
+      }
+
+      // console.log(img);
+      elem.appendChild(img || cssBtn);
+      parentElem.appendChild(elem);
+    }
+  });
+
+  if(parentElem.innerHTML) {
+    inputDisplay.appendChild(parentElem);
+    // setTimeout(function () {
+    //   inputDisplay.removeChild(parentElem);
+    //   parentElem = null;
+    // }, padInfo.retireRecordedFrameTime)
+  }
+}
+
+function makeInputDisplayElements(padInfo, inputs) {
+  var parentElem = document.createElement("div");
+
+
+  if(inputs.depressed) {
+    // if 3 punch macro is
+    if(inputs.depressed[4]) {
+      // check if individual punches are pressed
+      if(
+        inputs.depressed[0] &&
+        inputs.depressed[3] &&
+        inputs.depressed[5]
+      ) {
+        // delete the macro input
+        if(inputs.onePress) delete inputs.onePress[4];
+      } else {
+        // add the individual inputs
+        inputs.depressed[0] = true;
+        inputs.depressed[3] = true;
+        inputs.depressed[5] = true;
+      }
+    }
+
+    // 3 kick macro
+    if(inputs.depressed[6]) {
+      if(
+        inputs.depressed[1] &&
+        inputs.depressed[2] &&
+        inputs.depressed[7]
+      ) {
+        if(inputs.onePress) delete inputs.onePress[6];
+      } else {
+        inputs.depressed[1] = true;
+        inputs.depressed[2] = true;
+        inputs.depressed[7] = true;
+      }
+    }
+  }
+  // console.log(inputs);
+
+  if(inputs.onePress) {
+    if(inputs.onePress[4]) {
+      inputs.onePress[0] = true;
+      inputs.onePress[3] = true;
+      inputs.onePress[5] = true;
+      delete inputs.onePress[4];
+    }
+    if(inputs.onePress[6]) {
+      inputs.onePress[1] = true;
+      inputs.onePress[2] = true;
+      inputs.onePress[7] = true;
+      delete inputs.onePress[6];
+    }
+    // console.log(inputs.onePress);
+    Object.keys(inputs.onePress).map(btn => {
+      // if(inputs.onePress && inputs.onePress[btn]) return;
+
+      var configBtn = btn;
+
+      var elem = document.createElement("span");
+      elem.className = "btn-input";
+      elem.dataset.btn = btn;
+      var img = getInputImage(configBtn);
+
+      // console.log(img);
+      elem.appendChild(img);
+      parentElem.appendChild(elem);
+    });
+  }
+  // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
+  //   if(inputs.onePress && inputs.onePress[btn]) return;
+  //
+  //   var configBtn = btn;
+  //
+  //   if(inputs.depressed[4]) {
+  //     switch (configBtn) {
+  //       case 0:
+  //       case 3:
+  //       case 5:
+  //         return;
+  //     }
+  //   }
+  //   if(inputs.depressed[6]) {
+  //     switch (configBtn) {
+  //       case 1:
+  //       case 2:
+  //       case 7:
+  //         return;
+  //     }
+  //   }
+  //   var elem = document.createElement("span");
+  //   elem.className = "btn-input";
+  //   elem.dataset.btn = btn;
+  //   var img = getInputImage(configBtn);
+  //
+  //   // console.log(img);
+  //   elem.appendChild(img);
+  //   parentElem.appendChild(elem);
+  // });
+
+  if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
+
+  if(
+    inputs.oneAxis === inputs.axis ||
+    inputs.onePress
+  ) {
+    if(inputs.axis !== "n") {
+      var elem = document.createElement("span");
+      elem.className = "axis-input";
+      elem.dataset.axis = inputs.axis;
+      var img = getInputImage(inputs.axis);
+
+      elem.appendChild(img);
+      parentElem.appendChild(elem);
+    }
+  }
+
+  if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
+}
+
+function getInputImage(configBtn) {
+  // console.log(configBtn);
+  var img = document.createElement("img");
+  var data = getData(configBtn);
+  if(data) {
+    img.className = data.className;
+    img.src = data.src;
+    return img;
+  }
+
+  function getData(configBtn) {
+    if(typeof configBtn === "string") {
+      // console.log("axis");
+      // console.log(inputImages[configBtn]);
+      return inputImages[configBtn];
+    } else {
+      // console.log("button");
+      switch (configBtn) {
+        case 0: return inputImages["lp"];
+        case 3: return inputImages["mp"];
+        case 5: return inputImages["hp"];
+        case 4: return inputImages["lmhp"];
+
+        case 1: return inputImages["lk"];
+        case 2: return inputImages["mk"];
+        case 7: return inputImages["hk"];
+        case 6: return inputImages["lmhk"];
+      }
+    }
+  }
+}
+
+function MakeCanvas(canvasInfo) {
+  var cc = document.querySelector(".canvas-container");
+  this.webglIsAvailable = ( function () {
+		try {
+			var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
+		} catch ( e ) {
+			return false;
+		}
+	} )();
+
+  if(!this.webglIsAvailable) {
+    var span = document.createElement("span");
+    span.innerText = "WebGL is not support in your browser.";
+    if(cc) {
+      cc.appendChild(span);
+    } else {
+      console.error("cannot find canvas container");
+    }
+    return;
+  }
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.OrthographicCamera((canvasInfo.width/64) / -2, (canvasInfo.width/64) / 2, (canvasInfo.height/64) / 2, (canvasInfo.height/64) / -2, .1, 1000);
+  // var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
+  camera.position.y = 15;
+  camera.rotation.x = 4.75;
+
+  // console.log(camera.rotation);
+
+  var renderer = new THREE.WebGLRenderer();
+  renderer.setSize(canvasInfo.width, canvasInfo.height);
+  var cc = document.querySelector(".canvas-container");
+  if(cc) {
+    cc.appendChild(renderer.domElement);
+  } else {
+    console.error("cannot find canvas container");
+  }
+
+  this.renderScene = function () {
+    var val = document.querySelector(".blur-render").checked;
+    if(document.hasFocus() || val) {
+      renderer.render(scene, camera);
+    }
+  }
+}
+
+function createCube({x,y,z,color} = {
+    x: 0,
+    y: 0,
+    z: -.5,
+    color: 0x00ff00
+  }) {
+  var geometry = new THREE.BoxGeometry(1, 0, 1);
+  var material = new THREE.MeshBasicMaterial({ color });
+  var cube = new THREE.Mesh(geometry, material);
+  cube.position.z = z;
+
+  var bbox = new THREE.Box3(
+    new THREE.Vector3(),
+    new THREE.Vector3()
+  );
+  bbox.setFromObject(cube);
+  bbox.update = function () {
+    bbox.setFromCenterAndSize(cube.position, cube.scale);
+  }
+
+  console.log(cube, bbox);
+  return {
+    mesh: cube,
+    bbox,
+    move: function (axis) {
+      var posDirs = {
+        x: {
+          "l": -0.1,
+          "r": 0.1,
+        },
+        z: {
+          "u": -0.1,
+          "d": 0.1,
+        },
+      };
+
+      var axisValuesArray = axis.split("");
+      axisValuesArray.map(dir => {
+        cube.position.x += posDirs.x[dir] || 0;
+        cube.position.z += posDirs.z[dir] || 0;
+      });
+      // console.log(dir);
+      bbox.update();
+    }
+  };
+}
+
+function createCharacterSprite() {
+  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
+  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
+  var sprite = new THREE.Sprite(material);
+  sprite.scale.set(1, 1, 1);
+  sprite.position.z = -.5;
+
+  return {
+    sprite,
+    move: function (axis) {
+      var posDirs = {
+        x: {
+          "l": -0.1,
+          "r": 0.1,
+        },
+        z: {
+          "u": -0.1,
+          "d": 0.1,
+        },
+      };
+
+      var axisValuesArray = axis.split("");
+      axisValuesArray.map(dir => {
+        sprite.position.x += posDirs.x[dir] || 0;
+        sprite.position.z += posDirs.z[dir] || 0;
+      });
+      // console.log(dir);
+      bbox.update();
+    }
+  }
+}
+
+function testIntersect(subject1, subject2) {
+  var coll = subject1.intersectsBox(subject2);
+  return coll;
+}
+
 function getCharacters() {
   var buttons = {
     punches: ["LP", "MP", "HP", "EX", "SUPER"],
@@ -198,6 +841,18 @@ function getCharacters() {
   }
   return {
     ryu: {
+      stats: {
+        hp: 1000,
+        stun: 1000,
+        fWalk: 1,
+        bWalk: 1,
+        fDash: 10,
+        bDash: 10,
+        fThrow: 10,
+        bThrow: 10,
+        fJump: 12,
+        bJump: 12
+      },
       specials: {
         Z: {
           dir: {
@@ -559,671 +1214,6 @@ function populateCharacters() {
   });
 }
 
-function getPads() {
-  var pads = navigator.getGamepads();
-  Object.keys(pads).map(function (num) {
-    if(pads[num]) {
-      var configuration = null;
-      if(pads[num].mapping === "standard") {
-        configuration = {
-          "0": 1, // lp
-          "1": 2, // lk
-          "2": 0 // mk
-        }
-      }
-      var name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
-
-      // console.log("Gamepad Found!");
-      if(!gamepads[name]) addPad({
-        gamepad: pads[num],
-        configuration
-      });
-    }
-  });
-}
-
-function addPad(e) {
-  // console.log(e.gamepad);
-  var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
-  // console.log(name);
-  gamepads[name] = {
-    name: name,
-    index: e.gamepad.index,
-    configuration: e.configuration || {},
-    recordedInputs: [],
-    maxRecordedInputs: 50,
-    readCount: 0,
-    maxReadCount: 10,
-    retireRecordedFrameTime: (1000 / 60) * 50,
-    player: null,
-    axes: {
-      // ind: 9,
-      // u: -1,
-      // ur: -.71,
-      // r: -.43,
-      // dr: -.14,
-      // d: .14,
-      // dl: .43,
-      // l: .71,
-      // ul: 1,
-      ind: 9,
-      "3.29": "n",
-      "-1.00": "u",
-      "-0.71": "ur",
-      "-0.43": "r",
-      "-0.14": "dr",
-      "0.14": "d",
-      "0.43": "dl",
-      "0.71": "l",
-      "1.00": "ul",
-      "-0.03": "n",
-      "12.00": "u",
-      "1215.00": "ur",
-      "15.00": "r",
-      "1315.00": "dr",
-      "13.00": "d",
-      "1314.00": "dl",
-      "14.00": "l",
-      "1214.00": "ul"
-    }
-  };
-  // checkPad(gamepads[name]);
-  var opt = document.createElement("option");
-  opt.dataset.name = name;
-  opt.value = name;
-  opt.innerText = e.gamepad.id;
-  if(sticks) sticks.appendChild(opt);
-}
-
-function removePad(e) {
-  // console.log(e.gamepad);
-  var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
-  delete gamepads[name];
-  sticks.removeChild(document.querySelector("[data-name=" + name + "]"))
-}
-
-function normalizeID(id) {
-  return id.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s/g, "-");
-}
-
-function startConfig(buttonName) {
-  configuring = buttonName;
-  var elem = document.querySelector(".btn-" + buttonName);
-  elem.addClass("configuring");
-}
-
-function setConfig(name, btn) {
-  var map = {
-    lp: 0,
-    mp: 3,
-    hp: 5,
-    "3p": 4,
-    lk: 1,
-    mk: 2,
-    hk: 7,
-    "3k": 6
-  }
-  console.log(configuring, btn);
-  // console.log(humanizeButton(configuring), humanizeButton(btn));
-  gamepads[name].configuration[btn] = map[configuring];
-  // gamepads[name].configuration[configuring] = parseInt(index);
-  var elem = document.querySelector(".btn-" + configuring);
-  elem.removeClass("configuring");
-  configuring = false;
-}
-
-function primaryController(gamepad) {
-  var name;
-  if(gamepad) name = "i" + gamepad.index + "-" + normalizeID(gamepad.id);
-  // console.log(sticks.value, name, sticks.value === name);
-  return sticks.value === name;
-}
-
-function getButton(padInfo, btn) {
-  // console.log(gamepads[padInfo.name].configuration, btn);
-  // console.log(gamepads);
-  var value = gamepads[padInfo.name].configuration[btn];
-  // console.log(value);
-  var returnValue = typeof value === "number" ? parseInt(value) : parseInt(btn);
-  // console.log(returnValue);
-  return returnValue;
-}
-
-function highlightButton(usedButton, released) {
-  var elem = document.querySelector(".btn-" + humanizeButton(usedButton));
-  // if(!elem) return console.error("no elem");
-  if(!elem) return;
-  // console.log(elem, humanizeButton(usedButton));
-  if(released) {
-    elem.removeClass("pressed");
-  } else {
-    elem.addClass("pressed");
-  }
-}
-
-function humanizeButton(btn) {
-  return parseInt(btn) + 1;
-}
-
-function checkPad(padInfo) {
-  // var gamepad = navigator.getGamepads()[gamepadIndex]
-  var gamepadIndex = padInfo.index;
-  var gamepadName = padInfo.name;
-  // console.log(navigator.getGamepads()[gamepadIndex], gamepadName);
-  padInfo.depressed = padInfo.depressed || {};
-  var depressed = padInfo.depressed;
-  padInfo.test = padInfo.test || [];
-
-  var returnData = {};
-
-  // main loop
-  var gamepad = navigator.getGamepads()[gamepadIndex]
-  // if(primaryController(gamepad)) console.log(gamepadName); else return;
-  if(!primaryController(gamepad)) return;
-  var onePress = {}, oneRelease = {};
-  if(gamepad) gamepad.buttons.map(function (btn, ind) {
-    // console.log(btn);
-    if(btn.pressed) {
-      if(!depressed[ind]) {
-        onePress[ind] = true;
-      }
-      depressed[ind] = true;
-    } else {
-      if(depressed[ind]) oneRelease[ind] = true;
-      delete depressed[ind];
-    }
-  });
-
-  if(Object.keys(onePress).length > 0) returnData.onePress = onePress;
-  if(Object.keys(depressed).length > 0) returnData.depressed = depressed;
-  // if(Object.keys(oneRelease).length > 0) returnData.oneRelease = oneRelease;
-
-  buttonsPressedOnce(onePress);
-  buttonsAreDepressedAndAxes(depressed, gamepad.axes);
-  buttonsReleasedOnce(oneRelease);
-  // end loop
-
-  function buttonsPressedOnce(buttons) {
-    breakdownButton(buttons, function (usedButton) {
-      // console.log("pressed", usedButton);
-      // console.log(buttons);
-      if(!padInfo.player) {
-        if(!players.player1) {
-          players.player1 = new Player({
-            padInfo
-          });
-          padInfo.player = players.player1;
-        } else if(!players.player2) {
-          players.player2 = new Player({
-            padInfo
-          });
-          padInfo.player = players.player2;
-        }
-      }
-      if(configuring !== false) {
-        setConfig(gamepadName, usedButton);
-      } else {
-        highlightButton(usedButton);
-      }
-    });
-  }
-  function buttonsAreDepressedAndAxes(buttons, axes) {
-    // console.log("start");
-    var padButtonsObj = {};
-    breakdownButton(buttons, function (usedButton) {
-      // console.log("depressed", usedButton, buttons);
-      if(buttons["12"]) padButtonsObj[12] = 12;
-      if(buttons["14"]) padButtonsObj[14] = 14;
-      if(buttons["13"]) padButtonsObj[13] = 13;
-      if(buttons["15"]) padButtonsObj[15] = 15;
-    });
-    padButtonsArr = Object.keys(padButtonsObj);
-    // console.log(parseInt(padButtonsArr.join("")));
-    if(padButtonsArr.length > 0) axisData([parseInt(padButtonsArr.join(""))]); else axisData(axes);
-    // console.log("end");
-  }
-  function buttonsReleasedOnce(buttons) {
-    breakdownButton(buttons, function (usedButton) {
-      // console.log("released");
-      highlightButton(usedButton, true);
-    });
-  }
-
-  function breakdownButton(buttons, cb) {
-    Object.keys(buttons).map(function (btn) {
-      var usedButton = getButton(padInfo, btn);
-      // console.log(checked, usedButton);
-      // console.log(btn, "(" + (parseInt(btn) + 1) + ")", "Config:", usedButton);
-      cb(usedButton);
-    });
-  }
-
-  function axisData(axes) {
-    // console.log(axes);
-    var axPlus = axes.reduce((m,n) => m + n);
-    // console.log(axPlus);
-    var value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
-    var input = getStickInput(value) || "n";
-    // console.log(value);
-    if(input) returnData.axis = input;
-    if(input && ballTop && !ballTop.hasClass(input)) {
-      returnData.oneAxis = input;
-      // console.log(input);
-      ballTop.removeClass(["n", "u", "ur", "r", "dr", "d", "dl", "l", "ul"]);
-      // console.log(value, input);
-      ballTop.addClass(input);
-      // console.log(value, gamepads[gamepadName].axes[value]);
-    }
-  }
-
-  function getStickInput(value) {
-    return gamepads[gamepadName].axes[value];
-  }
-
-  function convert(data) {
-    var newData = {
-      axis: data.axis,
-    };
-    if(data.oneAxis) newData.oneAxis = data.oneAxis;
-    // console.log(data);
-    ["onePress", "depressed", "oneRelease"].map(state => {
-      var stateData = data[state];
-      if(!stateData) return;
-      var newStateData = {};
-      Object.keys(stateData).map(btn => {
-        newStateData[getButton(padInfo, btn)] = true;
-      });
-
-      newData[state] = newStateData;
-    });
-
-    return newData
-  }
-
-  return convert(returnData);
-}
-
-function gameLoop() {
-  var start = Date.now();
-  Object.keys(gamepads).map(name => {
-    var padInfo = gamepads[name];
-    var returnedInputs = checkPad(padInfo);
-
-    if(returnedInputs && Object.keys(returnedInputs).length > 0) {
-      // console.log(returnedInputs);
-      // makeInputDisplayElements(gamepads[name], returnedInputs);
-      // console.log(padInfo);
-      if(padInfo.player) {
-        gfxDisplay.rotateCube(returnedInputs.axis);
-        padInfo.player.receiveInputData(gamepads[name], returnedInputs);
-      }
-    }
-  });
-  if(gfxDisplay.webglIsAvailable) gfxDisplay.renderScene();
-  var end = Date.now();
-  var timeDiff = end-start;
-  proctime.innerText = timeDiff;
-  framesCounted++;
-  setTimeout(gameLoop, (1000 / 60) - timeDiff);
-}
-
-function showReadCount(readCount, maxReadCount) {
-  window["in-view-inputs"].style.height = (38 * (readCount > maxReadCount ? maxReadCount : readCount)) + "px";
-}
-
-function displayInputs(inputsArray, padInfo) {
-  var parentElem = document.createElement("div");
-
-  // if(inputsArray.length > 0) console.log(inputsArray);
-  inputsArray.map(input => {
-    if( isNaN(parseInt(input)) ) {
-      // letter. axis input
-      var elem = document.createElement("span");
-      elem.className = "axis-input";
-      elem.dataset.axis = input;
-      var img = getInputImage(input);
-      if(!img) return;
-      elem.appendChild(img);
-      parentElem.appendChild(elem);
-    } else
-    if(typeof parseInt(input) === "number") {
-      // number. button input
-      var elem = document.createElement("span");
-      elem.className = "btn-input";
-      elem.dataset.btn = input;
-      var configBtn = parseInt(input);
-      // console.log(input, configBtn);
-      var img, cssBtn = document.createElement("span");
-      cssBtn.className = "css-button";
-      switch (parseInt(configBtn)) {
-        case 8: cssBtn.innerText = "SELECT"; break; // select/back
-        case 9: cssBtn.innerText = "START"; break; // start
-        case 10: cssBtn.innerText = "HOME"; break; // home
-        default: img = getInputImage(configBtn);
-      }
-
-      // console.log(img);
-      elem.appendChild(img || cssBtn);
-      parentElem.appendChild(elem);
-    }
-  });
-
-  if(parentElem.innerHTML) {
-    inputDisplay.appendChild(parentElem);
-    // setTimeout(function () {
-    //   inputDisplay.removeChild(parentElem);
-    //   parentElem = null;
-    // }, padInfo.retireRecordedFrameTime)
-  }
-}
-
-function makeInputDisplayElements(padInfo, inputs) {
-  var parentElem = document.createElement("div");
-
-
-  if(inputs.depressed) {
-    // if 3 punch macro is
-    if(inputs.depressed[4]) {
-      // check if individual punches are pressed
-      if(
-        inputs.depressed[0] &&
-        inputs.depressed[3] &&
-        inputs.depressed[5]
-      ) {
-        // delete the macro input
-        if(inputs.onePress) delete inputs.onePress[4];
-      } else {
-        // add the individual inputs
-        inputs.depressed[0] = true;
-        inputs.depressed[3] = true;
-        inputs.depressed[5] = true;
-      }
-    }
-
-    // 3 kick macro
-    if(inputs.depressed[6]) {
-      if(
-        inputs.depressed[1] &&
-        inputs.depressed[2] &&
-        inputs.depressed[7]
-      ) {
-        if(inputs.onePress) delete inputs.onePress[6];
-      } else {
-        inputs.depressed[1] = true;
-        inputs.depressed[2] = true;
-        inputs.depressed[7] = true;
-      }
-    }
-  }
-  // console.log(inputs);
-
-  if(inputs.onePress) {
-    if(inputs.onePress[4]) {
-      inputs.onePress[0] = true;
-      inputs.onePress[3] = true;
-      inputs.onePress[5] = true;
-      delete inputs.onePress[4];
-    }
-    if(inputs.onePress[6]) {
-      inputs.onePress[1] = true;
-      inputs.onePress[2] = true;
-      inputs.onePress[7] = true;
-      delete inputs.onePress[6];
-    }
-    // console.log(inputs.onePress);
-    Object.keys(inputs.onePress).map(btn => {
-      // if(inputs.onePress && inputs.onePress[btn]) return;
-
-      var configBtn = btn;
-
-      var elem = document.createElement("span");
-      elem.className = "btn-input";
-      elem.dataset.btn = btn;
-      var img = getInputImage(configBtn);
-
-      // console.log(img);
-      elem.appendChild(img);
-      parentElem.appendChild(elem);
-    });
-  }
-  // if(inputs.depressed) Object.keys(inputs.depressed).map(btn => {
-  //   if(inputs.onePress && inputs.onePress[btn]) return;
-  //
-  //   var configBtn = btn;
-  //
-  //   if(inputs.depressed[4]) {
-  //     switch (configBtn) {
-  //       case 0:
-  //       case 3:
-  //       case 5:
-  //         return;
-  //     }
-  //   }
-  //   if(inputs.depressed[6]) {
-  //     switch (configBtn) {
-  //       case 1:
-  //       case 2:
-  //       case 7:
-  //         return;
-  //     }
-  //   }
-  //   var elem = document.createElement("span");
-  //   elem.className = "btn-input";
-  //   elem.dataset.btn = btn;
-  //   var img = getInputImage(configBtn);
-  //
-  //   // console.log(img);
-  //   elem.appendChild(img);
-  //   parentElem.appendChild(elem);
-  // });
-
-  if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
-
-  if(
-    inputs.oneAxis === inputs.axis ||
-    inputs.onePress
-  ) {
-    if(inputs.axis !== "n") {
-      var elem = document.createElement("span");
-      elem.className = "axis-input";
-      elem.dataset.axis = inputs.axis;
-      var img = getInputImage(inputs.axis);
-
-      elem.appendChild(img);
-      parentElem.appendChild(elem);
-    }
-  }
-
-  if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
-}
-
-function getInputImage(configBtn) {
-  // console.log(configBtn);
-  var img = document.createElement("img");
-  var data = getData(configBtn);
-  if(data) {
-    img.className = data.className;
-    img.src = data.src;
-    return img;
-  }
-
-  function getData(configBtn) {
-    if(typeof configBtn === "string") {
-      // console.log("axis");
-      // console.log(inputImages[configBtn]);
-      return inputImages[configBtn];
-    } else {
-      // console.log("button");
-      switch (configBtn) {
-        case 0: return inputImages["lp"];
-        case 3: return inputImages["mp"];
-        case 5: return inputImages["hp"];
-        case 4: return inputImages["lmhp"];
-
-        case 1: return inputImages["lk"];
-        case 2: return inputImages["mk"];
-        case 7: return inputImages["hk"];
-        case 6: return inputImages["lmhk"];
-      }
-    }
-  }
-}
-
-function MakeCanvas(canvasInfo) {
-  var cc = document.querySelector(".canvas-container");
-  this.webglIsAvailable = ( function () {
-		try {
-			var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
-		} catch ( e ) {
-			return false;
-		}
-	} )();
-
-  if(!this.webglIsAvailable) {
-    var span = document.createElement("span");
-    span.innerText = "WebGL is not support in your browser.";
-    if(cc) {
-      cc.appendChild(span);
-    } else {
-      console.error("cannot find canvas container");
-    }
-    return;
-  }
-
-  var scene = new THREE.Scene();
-  var camera = new THREE.OrthographicCamera((canvasInfo.width/64) / -2, (canvasInfo.width/64) / 2, (canvasInfo.height/64) / 2, (canvasInfo.height/64) / -2, .1, 1000);
-  // var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
-  camera.position.y = 15;
-  camera.rotation.x = 4.75;
-
-  // console.log(camera.rotation);
-
-  var renderer = new THREE.WebGLRenderer();
-  renderer.setSize(canvasInfo.width, canvasInfo.height);
-  var cc = document.querySelector(".canvas-container");
-  if(cc) {
-    cc.appendChild(renderer.domElement);
-  } else {
-    console.error("cannot find canvas container");
-  }
-
-  var player = createCube(),
-  cube = createCube();
-  scene.add(cube.mesh);
-  // scene.add(player = createCharacterSprite());
-  scene.add(player.mesh);
-
-  function testIntersect() {
-    var coll = player.bbox.intersectsBox(cube.bbox);
-    if(coll) {
-      cube.hit();
-    } else {
-      cube.noHit();
-    }
-  }
-
-  this.renderScene = function () {
-    if(document.hasFocus()) {
-      renderer.render(scene, camera);
-      testIntersect();
-    }
-  }
-
-  var axisDirs = {
-    x: {
-      "u": -0.1,
-      "d": 0.1,
-    },
-    z: {
-      "l": -0.1,
-      "r": 0.1,
-    },
-  }
-
-  this.rotateCube = function (axis) {
-    var axisValuesArray = axis.split("");
-    axisValuesArray.map(dir => {
-      player.mesh.rotation.x += axisDirs.x[dir] || 0;
-      player.mesh.rotation.z += axisDirs.z[dir] || 0;
-    });
-    player.bbox.update();
-  }
-  this.moveCube = function (dir) {
-    // console.log(dir);
-    switch (dir) {
-      case "left": player.mesh.position.x-=.1; break;
-      case "right": player.mesh.position.x+=.1; break;
-      case "up": player.mesh.position.z-=.1; break;
-      case "down": player.mesh.position.z+=.1; break;
-    }
-    player.bbox.update();
-  }
-  this.rotateCamera = function (key) {
-    switch (key) {
-      case "[":
-        camera.rotation.x -= .1;
-        break;
-      case "]":
-        camera.rotation.x += .1;
-        break;
-    }
-    // console.log("Camera rotation X:", camera.rotation.x)
-  }
-  document.addEventListener("keydown", e => {
-    // console.log(e);
-    switch (e.key) {
-      case "[": this.rotateCamera("["); break;
-      case "]": this.rotateCamera("]"); break;
-      case "ArrowLeft": e.preventDefault(); this.moveCube("left"); break;
-      case "ArrowRight": e.preventDefault(); this.moveCube("right"); break;
-      case "ArrowUp": e.preventDefault(); this.moveCube("up"); break;
-      case "ArrowDown": e.preventDefault(); this.moveCube("down"); break;
-    }
-  });
-}
-
-function createCube({x,y,z,color} = {
-    x: 0,
-    y: 0,
-    z: -.5,
-    color: 0x00ff00
-  }) {
-  var geometry = new THREE.BoxGeometry(1, 0, 1);
-  var material = new THREE.MeshBasicMaterial({ color });
-  var cube = new THREE.Mesh(geometry, material);
-  cube.position.z = z;
-
-  var bbox = new THREE.Box3(
-    new THREE.Vector3(),
-    new THREE.Vector3()
-  );
-  bbox.setFromObject(cube);
-  bbox.update = function () {
-    bbox.setFromCenterAndSize(cube.position, cube.scale);
-  }
-
-  console.log(cube, bbox);
-  return {
-    mesh: cube,
-    bbox,
-    hit: function () {
-      cube.material.color.setHex(0xff0000);
-    },
-    noHit: function () {
-      cube.material.color.setHex(color);
-    }
-  };
-}
-
-function createCharacterSprite() {
-  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
-  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
-  var sprite = new THREE.Sprite(material);
-  sprite.scale.set(1, 1, 1);
-  sprite.position.z = -.5;
-  return sprite;
-}
-
 function setPuppet(charName, playerID) {
   var characters = getCharacters();
   var player = players[playerID];
@@ -1236,6 +1226,20 @@ function setPuppet(charName, playerID) {
 function Player(data) {
   var constructor = function(data) {
     this.actionsArray = [];
+
+    this.startProps = {
+      position: {
+        x: data.startX || 0,
+        y: data.startY || 0
+      }
+    };
+
+    this.activeProps = Object.assign(this.startProps.copyObject(), {
+      dashState: {
+        time: 0,
+        dir: null
+      }
+    });
 
     var actionVariants = [
       ["F", "SUPER", "1+2+7", 50],
@@ -1422,10 +1426,11 @@ function Player(data) {
 
     this.facing = "right";
     this.canTakeInput = true;
-    this.padInfo = data.padInfo || null;
+    // this.padInfo = data.padInfo || null;
     // console.log(this);
     this.activeActionsArray = this.actionsArray;
     this.puppet = null;
+    console.log(this);
   }.bind(this, data)();
 
   this.setActionableState = function(action, state) {
@@ -1453,8 +1458,8 @@ function Player(data) {
     if(!this.puppet) return console.warn("No puppet");
     if(this.recovery > 0) this.recovery--;
     // console.log(this.inputsToPurge);
-    if(this.recovery === 1) {
-      this.inputsToPurge.map((_, ind) => {
+    if(this.recovery <= 1) {
+      if(this.inputsToPurge) this.inputsToPurge.map((_, ind) => {
         var place = padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]);
         // console.log(padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]));
         if(place >= 0) padInfo.recordedInputs[place] = null;
@@ -1579,21 +1584,25 @@ function Player(data) {
 
     if(inputs.onePress && Object.keys(inputs.onePress).length === 0) inputs.onePress = null;
 
+    // console.log(inputs.oneAxis === inputs.axis);
     if(
-      inputs.oneAxis === inputs.axis ||
-      inputs.onePress
+      // inputs.oneAxis === inputs.axis ||
+      // inputs.onePress
+      inputs.oneAxis
     ) {
-      if(inputs.axis !== "n") {
-        // var elem = document.createElement("span");
-        // elem.className = "axis-input";
-        // elem.dataset.axis = inputs.axis;
-        // var img = getInputImage(inputs.axis);
-        //
-        // elem.appendChild(img);
-        // parentElem.appendChild(elem);
-        parentArray.unshift(inputs.axis);
-      }
+      // if(inputs.oneAxis && inputs.oneAxis !== "n") {
+      //   // var elem = document.createElement("span");
+      //   // elem.className = "axis-input";
+      //   // elem.dataset.axis = inputs.axis;
+      //   // var img = getInputImage(inputs.axis);
+      //   //
+      //   // elem.appendChild(img);
+      //   // parentElem.appendChild(elem);
+      //   parentArray.unshift(inputs.axis);
+      // }
+      parentArray.unshift(inputs.oneAxis);
     }
+    // console.log(parentArray);
 
     // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
     if(parentArray.length > 0) {
@@ -1639,6 +1648,13 @@ function Player(data) {
     var read = maxRead;
     var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
+    var putInDashableState = (dir) => {
+      this.activeProps.dashState = {
+        time: 10,
+        dir
+      };
+    }
+
     var performMove = function(movesCaptured) {
       var keys = Object.keys(movesCaptured).filter(n => !!movesCaptured[n]);// ["SUPER", "EX", "NORM"]
       var whatImWorkingWith = record.slice(padInfo.maxReadCount * -1);
@@ -1654,10 +1670,10 @@ function Player(data) {
           var action = movesCaptured[key];
           if(!action) return;
 
-          if(this.canTakeInput) proceed.bind(this, action, meter, key)();
+          if(this.canTakeInput) doAttack.bind(this, action, meter, key)();
         });
       } else {
-        // do normal
+        // do normal or movements
         var singleFrameInputs = record.slice(-1)[0];
 
         if(singleFrameInputs && singleFrameInputs.length >= 1) {
@@ -1670,23 +1686,35 @@ function Player(data) {
           }
 
           var button = buttonNumToButtonTxt(singleFrameInputs[singleFrameInputs.length - 1]);
-          if(!button) return;
+          // if(!button) return;
 
           if(this.puppet) {
             var commandNormals = this.puppet.commandNormals[direction] || {};
             var normals = this.puppet.normals;
             if(!normals) return;
-            var action = commandNormals[button] || normals[button];
+            var action = button ? (commandNormals[button] || normals[button]) : null;
             if(action) {
+              // do normal
               console.log("do normal");
               // console.log(action);
-              proceed.bind(this, action, meter)();
+              doAttack.bind(this, action, meter)();
+            } else {
+              // do movement
+              // console.log("do movement", singleFrameInputs, direction);
+              if(this.activeProps.dashState.time > 0) {
+                if(direction === this.activeProps.dashState.dir) {
+                  console.log("do movement");
+                  doMovement.bind(this, "dash", direction, this.activeProps)();
+                }
+              } else if(direction === "F") {
+                putInDashableState(direction);
+              }
             }
           }
         }
       }
 
-      function proceed(action, meter, type) {
+      function doAttack(action, meter, type) {
         // console.log(meter);
         // type === [SUPER, EX, NORM]
         switch (type) {
@@ -1703,6 +1731,23 @@ function Player(data) {
         this.setActionableState("input", {
           canTakeInput: false,
           recovery: action.recovery || 20,
+          inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
+        });
+      }
+
+      function doMovement(action, direction, stats) {
+        var text;
+        switch (action) {
+          case "dash":
+            text = direction + " dash";
+            speaker.setText(text);
+            speaker.speak();
+            break;
+        }
+
+        this.setActionableState("input", {
+          canTakeInput: false,
+          recovery: stats[direction.toLowerCase() + "Dash"] || 10,
           inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
         });
       }
@@ -1735,7 +1780,7 @@ function Player(data) {
         // var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
         var whatImatched = [];
-        var discrepencies = 0, maxDiscrepencies = 2;
+        var discrepencies = 0, maxDiscrepencies = 3;
 
         // now that it has the recorded inputs it needs
         for(ind = whatImWorkingWith.length-1; ind >= 0; ind--) {
@@ -1923,6 +1968,7 @@ function Player(data) {
     });
     console.log("length of new actions array:", newActionsArray.length);
     this.activeActionsArray = newActionsArray;
+    this.activeProps = Object.assign( this.activeProps, this.puppet.stats);
   }
 
   function buttonNumToButtonTxt(btn) {
