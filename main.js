@@ -488,7 +488,7 @@ function gameLoop() {
       // makeInputDisplayElements(gamepads[name], returnedInputs);
       // console.log(padInfo);
       if(padInfo.player) {
-        padInfo.player.receiveInputData(gamepads[name], returnedInputs);
+        padInfo.player.performFrameActions(gamepads[name], returnedInputs);
       }
     }
   });
@@ -1236,6 +1236,7 @@ function Player(data) {
 
     this.activeProps = Object.assign(this.startProps.copyObject(), {
       dashState: {
+        phase: null, // null, prep, canDash
         time: 0,
         dir: null
       }
@@ -1433,6 +1434,44 @@ function Player(data) {
     console.log(this);
   }.bind(this, data)();
 
+  var alterDashState = (dir, setTime) => {
+    var phase = this.activeProps.dashState.phase, time = this.activeProps.dashState.time;
+    if(setTime) {
+      time = 10;
+    } else {
+      time--;
+    }
+
+    if(dir === "N") {
+      dir = this.activeProps.dashState.dir;
+    }
+
+    if(dir) {
+      switch (this.activeProps.dashState.phase) {
+        case "prep": phase = "canDash"; break;
+        case "canDash": phase = null; break;
+        case null: phase = "prep"; break;
+      }
+    } else {
+      if(time <= 0) {
+        phase = null
+        this.activeProps.dashState.dir = null;
+      } else {
+        phase = phase;
+      }
+    }
+
+    this.activeProps.dashState = {
+      // phase: this.activeProps.dashState === "prep" ? "canDash" : "prep",
+      // time: this.activeProps.dashState.time--,
+      // dir: dir || this.activeProps.dashState.dir
+      phase,
+      time,
+      dir: dir || this.activeProps.dashState.dir
+    };
+    // console.log(phase, time, this.activeProps.dashState.dir);
+  }
+
   this.setActionableState = function(action, state) {
     switch (action) {
       case "input":
@@ -1454,7 +1493,7 @@ function Player(data) {
     facing.innerText = this.facing;
   }
 
-  this.receiveInputData = function (padInfo, inputs) {
+  this.performFrameActions = function (padInfo, inputs) {
     if(!this.puppet) return console.warn("No puppet");
     if(this.recovery > 0) this.recovery--;
     // console.log(this.inputsToPurge);
@@ -1473,6 +1512,7 @@ function Player(data) {
       recovery: this.recovery
     });
     if(this.recovery === 0 || this.canTakeInput) this.polishInputData(padInfo, inputs);
+    alterDashState();
   }
 
   this.polishInputData = function(padInfo, inputs) {
@@ -1648,13 +1688,6 @@ function Player(data) {
     var read = maxRead;
     var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
-    var putInDashableState = (dir) => {
-      this.activeProps.dashState = {
-        time: 10,
-        dir
-      };
-    }
-
     var performMove = function(movesCaptured) {
       var keys = Object.keys(movesCaptured).filter(n => !!movesCaptured[n]);// ["SUPER", "EX", "NORM"]
       var whatImWorkingWith = record.slice(padInfo.maxReadCount * -1);
@@ -1701,13 +1734,45 @@ function Player(data) {
             } else {
               // do movement
               // console.log("do movement", singleFrameInputs, direction);
-              if(this.activeProps.dashState.time > 0) {
+              // console.log("do movement", this.activeProps.dashState.phase, this.activeProps.dashState.time);
+              if(this.activeProps.dashState.phase === "canDash") {
                 if(direction === this.activeProps.dashState.dir) {
-                  console.log("do movement");
+                  // console.log("do movement", this.activeProps.dashState.phase);
+                  alterDashState(direction, true)
                   doMovement.bind(this, "dash", direction, this.activeProps)();
                 }
-              } else if(direction === "F") {
-                putInDashableState(direction);
+              } else {
+                switch(this.activeProps.dashState.phase) {
+                  case null:
+                    if(direction === "F" || direction === "B") alterDashState(direction, true); break;
+                  case "prep":
+                    if(direction === "N") {
+                      console.log("prep");
+                      alterDashState(direction, true);
+                    }
+                    break;
+                }
+
+                // walk
+                switch (direction) {
+                  case "F":
+                  case "B":
+                    doMovement.bind(this, "walk", direction, this.activeProps)();
+                    break;
+                  case "N":
+                    doMovement.bind(this, "stand", direction, this.activeProps)();
+                    break;
+                  case "D":
+                  case "DB":
+                  case "DF":
+                    doMovement.bind(this, "crouch", direction, this.activeProps)();
+                    break;
+                  case "U":
+                  case "UB":
+                  case "UF":
+                    doMovement.bind(this, "jump", direction, this.activeProps)();
+                    break;
+                }
               }
             }
           }
@@ -1736,18 +1801,29 @@ function Player(data) {
       }
 
       function doMovement(action, direction, stats) {
-        var text;
-        switch (action) {
-          case "dash":
-            text = direction + " dash";
-            speaker.setText(text);
-            speaker.speak();
-            break;
-        }
+        var xDirection = direction.split("").pop().toLowerCase()
+        var capitalAction = action.replace(/(.)/, (_, l) => l.toUpperCase());
+        var text = xDirection + " " + action;
+        speaker.setText(text);
+        speaker.speak();
+        // switch (action) {
+        //   case "dash":
+        //     text = direction + " dash";
+        //     speaker.setText(text);
+        //     speaker.speak();
+        //     break;
+        //   case "walk":
+        //     text = direction + " walk";
+        //     speaker.setText(text);
+        //     speaker.speak();
+        //     break;
+        // }
+        console.log(text);
+
 
         this.setActionableState("input", {
           canTakeInput: false,
-          recovery: stats[direction.toLowerCase() + "Dash"] || 10,
+          recovery: stats[xDirection + capitalAction] || 0,
           inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
         });
       }
