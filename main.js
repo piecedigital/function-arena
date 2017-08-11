@@ -839,42 +839,70 @@ function getCharacters() {
     kicks: ["LK", "MK", "HK", "EX", "SUPER"],
     kicksNum: ["1", "2", "7", "1+2+7", "1+2", "2+7", "1+7"]
   }
-  return {
+
+  function generalMovementFunc(action, dir) {
+    // console.log(action, dir);
+  }
+  var characters = {
     ryu: {
+      fullName: "Ryu",
+      movementFunc: null,
       stats: {
         hp: 1000,
         stun: 1000,
         fWalk: {
           name: "Forward Walk",
-          frames: 1
+          SU:0,
+          A: 1,
+          R: 0,
         },
         bWalk: {
           name: "Back Walk",
-          frames: 1
+          SU:0,
+          A: 1,
+          R: 0,
         },
         fDash: {
           name: "Forward Dash",
-          frames: 10
+          SU: 0,
+          A: 10,
+          R: 10,
         },
         bDash: {
           name: "Back Dash",
-          frames: 10
+          SU: 0,
+          A: 10,
+          R: 10,
         },
         fThrow: {
           name: "Forward Throw",
-          frames: 10
+          SU: 5,
+          A: 10,
+          R: 12,
         },
         bThrow: {
           name: "Back Throw",
-          frames: 10
+          SU: 5,
+          A: 10,
+          R: 12,
+        },
+        uJump: {
+          name: "Neutral Jump",
+          SU: 0,
+          A: 35,
+          R: 4,
         },
         fJump: {
           name: "Forward Jump",
-          frames: 12
+          SU: 0,
+          A: 35,
+          R: 4,
         },
         bJump: {
           name: "Back Jump",
-          frames: 12
+          SU: 0,
+          A: 35,
+          R: 4,
         }
       },
       specials: {
@@ -1213,6 +1241,13 @@ function getCharacters() {
       }
     }
   }
+
+  // bind basic movement function to characters
+  Object.keys(characters).map(name => {
+    characters[name].movementFunc = generalMovementFunc.bind(characters[name]);
+  });
+
+  return characters;
 }
 
 function populateCharacters() {
@@ -1451,6 +1486,7 @@ function Player(data) {
 
     this.facing = "right";
     this.canTakeInput = true;
+    this.lastDirection = "n";
     // this.padInfo = data.padInfo || null;
     // console.log(this);
     this.activeActionsArray = this.actionsArray;
@@ -1496,13 +1532,14 @@ function Player(data) {
     // console.log(phase, time, this.activeProps.dashState.dir);
   }
 
-  this.setActionableState = function(action, state) {
+  this.setActionState = function(action, state) {
     switch (action) {
       case "input":
         [
           "canTakeInput",
           "recovery",
           "inputsToPurge",
+          "lastDirection",
         ].map(name => {
           // console.log(name, state[name], state[name] !== undefined);
           state[name] !== undefined ? this[name] = state[name] : null
@@ -1519,9 +1556,9 @@ function Player(data) {
 
   this.performFrameActions = function (padInfo, inputs) {
     if(!this.puppet) return console.warn("No puppet");
-    if(this.recovery > 0) this.recovery--;
-    // console.log(this.inputsToPurge);
+    // console.log(this.recovery);
     if(this.recovery === 1) {
+      // console.log(this.inputsToPurge);
       if(this.inputsToPurge) this.inputsToPurge.map((_, ind) => {
         var place = padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]);
         // console.log(padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]));
@@ -1531,7 +1568,8 @@ function Player(data) {
       // console.log(padInfo.recordedInputs);
     }
     // if(this.recovery) console.log(this.recovery);
-    this.setActionableState("input", {
+    if(this.recovery > 0) this.recovery--;
+    this.setActionState("input", {
       canTakeInput: this.canTakeInput || this.recovery === 0,
       recovery: this.recovery
     });
@@ -1610,7 +1648,7 @@ function Player(data) {
         // console.log(key, typeof btn, btn, inputs.onePress[key]);
 
         if(typeof btn !== "number") return;
-        console.log(btn);
+        // console.log(btn);
 
         parentArray.push(btn.toString());
       });
@@ -1687,10 +1725,10 @@ function Player(data) {
       },  padInfo.retireRecordedFrameTime);
     }
     displayInputs(parentArray, padInfo);
-    this.captureMove(padInfo);
+    this.captureMove(padInfo, inputs.axis);
   }
 
-  this.captureMove = function(padInfo) {
+  this.captureMove = function(padInfo, axis) {
     // this creates an array which basically represets directions
     // the first index is the left, and the second index is the right
     // that means that if the player is facing right "dr" = `d${faceDirectionTransformGuide[1]}` = "df" (down-forward)
@@ -1762,8 +1800,9 @@ function Player(data) {
               doAttack.bind(this, action, meter)();
             } else {
               // do movement
-              // console.log("do movement", singleFrameInputs, direction);
-              // console.log("do movement", this.activeProps.dashState.phase, this.activeProps.dashState.time);
+              direction = normalizeDirection(axis, faceDirectionTransformGuide).toUpperCase();
+              if(direction.toLowerCase() === this.lastDirection) return;
+              // console.log(direction);
               if(this.activeProps.dashState.phase === "canDash") {
                 if(direction === this.activeProps.dashState.dir) {
                   // console.log("do movement", this.activeProps.dashState.phase);
@@ -1821,40 +1860,35 @@ function Player(data) {
         speaker.setText(text);
         speaker.speak();
 
-        this.setActionableState("input", {
+        this.setActionState("input", {
           canTakeInput: false,
           recovery: action.recovery || 20,
-          inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
+          inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length - (whatImWorkingWith.length - ind)])
         });
+
+        // action function
+        if(action.moveFunc) action.moveFunc();
       }
 
       function doMovement(action, direction, stats) {
-        var xDirection = direction.split("").pop().toLowerCase()
+        var xAxisDirection = direction.split("").pop().toLowerCase()
         var capitalAction = action.replace(/(.)/, (_, l) => l.toUpperCase());
-        var statNode = stats[xDirection + capitalAction] || {};
-        var text = statNode.name || xDirection + " " + action;
+        var statNode = stats[xAxisDirection + capitalAction] || {};
+        var text = statNode.name || xAxisDirection + " " + action;
         speaker.setText(text);
         speaker.speak();
-        // switch (action) {
-        //   case "dash":
-        //     text = direction + " dash";
-        //     speaker.setText(text);
-        //     speaker.speak();
-        //     break;
-        //   case "walk":
-        //     text = direction + " walk";
-        //     speaker.setText(text);
-        //     speaker.speak();
-        //     break;
-        // }
-        console.log(text);
+        // console.log(text);
 
-
-        this.setActionableState("input", {
+        // console.log(xAxisDirection);
+        this.setActionState("input", {
           canTakeInput: false,
-          recovery: statNode.frames || 0,
-          inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length-(whatImWorkingWith.length-ind)])
+          recovery: statNode.SU + statNode.A + statNode.R || 0,
+          inputsToPurge: whatImWorkingWith.pop(),
+          lastDirection: xAxisDirection
         });
+
+        // move function
+        this.puppet.movementFunc(action, xAxisDirection);
       }
       // console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
     }.bind(this);
