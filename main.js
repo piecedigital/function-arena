@@ -841,7 +841,7 @@ function getCharacters() {
   }
 
   function generalMovementFunc(action, dir) {
-    // console.log(action, dir);
+    console.log(dir, action);
   }
   var characters = {
     ryu: {
@@ -852,56 +852,65 @@ function getCharacters() {
         stun: 1000,
         fWalk: {
           name: "Forward Walk",
+          distance: .1,
           SU:0,
           A: 1,
           R: 0,
         },
         bWalk: {
           name: "Back Walk",
+          distance: .1,
           SU:0,
           A: 1,
           R: 0,
         },
         fDash: {
           name: "Forward Dash",
+          distance: 1.8,
           SU: 0,
-          A: 10,
-          R: 10,
+          A: 16,
+          R: 0,
         },
         bDash: {
           name: "Back Dash",
+          distance: 2,
           SU: 0,
-          A: 10,
-          R: 10,
+          A: 21,
+          R: 0,
         },
         fThrow: {
           name: "Forward Throw",
+          distance: 2.5,
           SU: 5,
           A: 10,
           R: 12,
         },
         bThrow: {
           name: "Back Throw",
+          distance: 3,
           SU: 5,
           A: 10,
           R: 12,
         },
         uJump: {
           name: "Neutral Jump",
-          SU: 0,
-          A: 35,
+          distance: 3,
+          SU: 4,
+          A: 38,
           R: 4,
         },
         fJump: {
           name: "Forward Jump",
-          SU: 0,
-          A: 35,
+          distance: 3,
+          SU: 3,
+          A: 38,
           R: 4,
         },
         bJump: {
           name: "Back Jump",
-          SU: 0,
-          A: 35,
+          distance: 0,
+          SU: 4,
+          A: 38,
           R: 4,
         }
       },
@@ -1799,49 +1808,55 @@ function Player(data) {
               // console.log(action);
               doAttack.bind(this, action, meter)();
             } else {
-              // do movement
-              direction = normalizeDirection(axis, faceDirectionTransformGuide).toUpperCase();
-              if(direction.toLowerCase() === this.lastDirection) return;
-              // console.log(direction);
-              if(this.activeProps.dashState.phase === "canDash") {
-                if(direction === this.activeProps.dashState.dir) {
-                  // console.log("do movement", this.activeProps.dashState.phase);
-                  alterDashState(direction, true)
-                  doMovement.bind(this, "dash", direction, this.activeProps)();
-                }
-              } else {
-                switch(this.activeProps.dashState.phase) {
-                  case null:
-                    if(direction === "F" || direction === "B") alterDashState(direction, true); break;
-                  case "prep":
-                    if(direction === "N") {
-                      alterDashState(direction, true);
-                    }
-                    break;
-                }
-
-                // walk
-                switch (direction) {
-                  case "F":
-                  case "B":
-                    doMovement.bind(this, "walk", direction, this.activeProps)();
-                    break;
-                  case "N":
-                    doMovement.bind(this, "stand", direction, this.activeProps)();
-                    break;
-                  case "D":
-                  case "DB":
-                  case "DF":
-                    doMovement.bind(this, "crouch", direction, this.activeProps)();
-                    break;
-                  case "U":
-                  case "UB":
-                  case "UF":
-                    doMovement.bind(this, "jump", direction, this.activeProps)();
-                    break;
-                }
-              }
+              tryMovement.bind(this)();
             }
+          }
+        } else {
+          tryMovement.bind(this)();
+        }
+      }
+
+      function tryMovement() {
+        // do movement
+        direction = normalizeDirection(axis, faceDirectionTransformGuide).toUpperCase();
+        if(direction.toLowerCase() === this.lastDirection) return;
+        // console.log(direction);
+        if(this.activeProps.dashState.phase === "canDash") {
+          if(direction === this.activeProps.dashState.dir) {
+            // console.log("do movement", this.activeProps.dashState.phase);
+            alterDashState(direction, true)
+            doMovement.bind(this, "dash", direction, this.activeProps)();
+          }
+        } else {
+          switch(this.activeProps.dashState.phase) {
+            case null:
+              if(direction === "F" || direction === "B") alterDashState(direction, true); break;
+            case "prep":
+              if(direction === "N") {
+                alterDashState(direction, true);
+              }
+              break;
+          }
+
+          // walk
+          switch (direction) {
+            case "F":
+            case "B":
+              doMovement.bind(this, "walk", direction, this.activeProps)();
+              break;
+            case "N":
+              doMovement.bind(this, "stand", direction, this.activeProps)();
+              break;
+            case "D":
+            case "DB":
+            case "DF":
+              doMovement.bind(this, "crouch", direction, this.activeProps)();
+              break;
+            case "U":
+            case "UB":
+            case "UF":
+              doMovement.bind(this, "jump", direction, this.activeProps)();
+              break;
           }
         }
       }
@@ -1888,6 +1903,7 @@ function Player(data) {
         });
 
         // move function
+        // console.log(this.lastDirection);
         this.puppet.movementFunc(action, xAxisDirection);
       }
       // console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
