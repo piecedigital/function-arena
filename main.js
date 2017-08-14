@@ -67,8 +67,8 @@ HTMLElement.prototype.removeClass = function(stringOrArray) {
   proceed(type);
 }
 
-Object.prototype.copyObject = function () {
-  return JSON.parse(JSON.stringify(this));
+copyObject = function (obj) {
+  return JSON.parse(JSON.stringify(obj));
 }
 
 var realType = function (data) {
@@ -229,6 +229,8 @@ function addPad(e) {
     readCount: 0,
     maxReadCount: 10,
     retireRecordedFrameTime: (1000 / 60) * 50,
+    noInputFrames: 0,
+    maxNoInputFrames: 25,
     player: null,
     axes: {
       // ind: 9,
@@ -702,136 +704,6 @@ function getInputImage(configBtn) {
   }
 }
 
-function MakeCanvas(canvasInfo) {
-  var cc = document.querySelector(".canvas-container");
-  this.webglIsAvailable = ( function () {
-		try {
-			var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
-		} catch ( e ) {
-			return false;
-		}
-	} )();
-
-  if(!this.webglIsAvailable) {
-    var span = document.createElement("span");
-    span.innerText = "WebGL is not support in your browser.";
-    if(cc) {
-      cc.appendChild(span);
-    } else {
-      console.error("cannot find canvas container");
-    }
-    return;
-  }
-
-  var scene = new THREE.Scene();
-  var camera = new THREE.OrthographicCamera((canvasInfo.width/64) / -2, (canvasInfo.width/64) / 2, (canvasInfo.height/64) / 2, (canvasInfo.height/64) / -2, .1, 1000);
-  // var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
-  camera.position.y = 15;
-  camera.rotation.x = 4.75;
-
-  // console.log(camera.rotation);
-
-  var renderer = new THREE.WebGLRenderer();
-  renderer.setSize(canvasInfo.width, canvasInfo.height);
-  var cc = document.querySelector(".canvas-container");
-  if(cc) {
-    cc.appendChild(renderer.domElement);
-  } else {
-    console.error("cannot find canvas container");
-  }
-
-  this.renderScene = function () {
-    var val = document.querySelector(".blur-render").checked;
-    if(document.hasFocus() || val) {
-      renderer.render(scene, camera);
-    }
-  }
-}
-
-function createCube({x,y,z,color} = {
-    x: 0,
-    y: 0,
-    z: -.5,
-    color: 0x00ff00
-  }) {
-  var geometry = new THREE.BoxGeometry(1, 0, 1);
-  var material = new THREE.MeshBasicMaterial({ color });
-  var cube = new THREE.Mesh(geometry, material);
-  cube.position.z = z;
-
-  var bbox = new THREE.Box3(
-    new THREE.Vector3(),
-    new THREE.Vector3()
-  );
-  bbox.setFromObject(cube);
-  bbox.update = function () {
-    bbox.setFromCenterAndSize(cube.position, cube.scale);
-  }
-
-  console.log(cube, bbox);
-  return {
-    mesh: cube,
-    bbox,
-    move: function (axis) {
-      var posDirs = {
-        x: {
-          "l": -0.1,
-          "r": 0.1,
-        },
-        z: {
-          "u": -0.1,
-          "d": 0.1,
-        },
-      };
-
-      var axisValuesArray = axis.split("");
-      axisValuesArray.map(dir => {
-        cube.position.x += posDirs.x[dir] || 0;
-        cube.position.z += posDirs.z[dir] || 0;
-      });
-      // console.log(dir);
-      bbox.update();
-    }
-  };
-}
-
-function createCharacterSprite() {
-  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
-  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
-  var sprite = new THREE.Sprite(material);
-  sprite.scale.set(1, 1, 1);
-  sprite.position.z = -.5;
-
-  return {
-    sprite,
-    move: function (axis) {
-      var posDirs = {
-        x: {
-          "l": -0.1,
-          "r": 0.1,
-        },
-        z: {
-          "u": -0.1,
-          "d": 0.1,
-        },
-      };
-
-      var axisValuesArray = axis.split("");
-      axisValuesArray.map(dir => {
-        sprite.position.x += posDirs.x[dir] || 0;
-        sprite.position.z += posDirs.z[dir] || 0;
-      });
-      // console.log(dir);
-      bbox.update();
-    }
-  }
-}
-
-function testIntersect(subject1, subject2) {
-  var coll = subject1.intersectsBox(subject2);
-  return coll;
-}
-
 function getCharacters() {
   var buttons = {
     punches: ["LP", "MP", "HP", "EX", "SUPER"],
@@ -1302,7 +1174,7 @@ function Player(data) {
       }
     };
 
-    this.activeProps = Object.assign(this.startProps.copyObject(), {
+    this.activeProps = Object.assign(copyObject(this.startProps), {
       dashState: {
         phase: null, // null, prep, canDash
         time: 0,
@@ -1582,7 +1454,7 @@ function Player(data) {
       canTakeInput: this.canTakeInput || this.recovery === 0,
       recovery: this.recovery
     });
-    if(this.recovery === 0 || this.canTakeInput) this.polishInputData(padInfo, inputs);
+    if(this.recovery <= 6 || this.canTakeInput) this.polishInputData(padInfo, inputs);
     alterDashState();
   }
 
@@ -1718,6 +1590,7 @@ function Player(data) {
     // if(parentElem.innerHTML) inputDisplay.appendChild(parentElem);
     if(parentArray.length > 0) {
       // console.log(parentArray);
+      padInfo.noInputFrames = 0;
       padInfo.recordedInputs.push(parentArray);
       if(padInfo.recordedInputs.length > padInfo.maxRecordedInputs) padInfo.recordedInputs.shift();
       padInfo.readCount++;
@@ -1732,7 +1605,17 @@ function Player(data) {
         if(padInfo.readCount < 0) padInfo.readCount = 0;
         showReadCount(padInfo.readCount, padInfo.maxReadCount);
       },  padInfo.retireRecordedFrameTime);
+    } else {
+      padInfo.noInputFrames += 1;
+      if(padInfo.noInputFrames >= padInfo.maxNoInputFrames) {
+        // console.log("reset", padInfo.noInputFrames);
+        padInfo.noInputFrames = 0;
+        padInfo.readCount = 0;
+        showReadCount(padInfo.readCount, padInfo.maxReadCount);
+      }
+      // showReadCount(padInfo.readCount, padInfo.maxReadCount);
     }
+
     displayInputs(parentArray, padInfo);
     this.captureMove(padInfo, inputs.axis);
   }
@@ -1756,6 +1639,7 @@ function Player(data) {
     var record = padInfo.recordedInputs;
 
     // console.log(record.slice(-1));
+    // pick the higest number to read the inputs
     var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
     var read = maxRead;
     var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
@@ -1927,12 +1811,6 @@ function Player(data) {
 
         var whatIwant = JSON.parse(JSON.stringify(action.input));
         var whatIwantJoined = whatIwant.join("").replace(/\+/g, "");
-
-        // pick the higest number to read the inputs
-        // var maxRead = padInfo.readCount > padInfo.maxReadCount ? padInfo.maxReadCount : padInfo.readCount;
-        // var read = maxRead;
-        // var read = maxRead > whatIwant.length ? padInfo.readCount : whatIwant.length;
-        // var whatImWorkingWith = record.slice( (read) * -1 ).filter(n => !!n);
 
         var whatImatched = [];
         var discrepencies = 0, maxDiscrepencies = 3;
@@ -2150,4 +2028,134 @@ function Player(data) {
   }
 
   facechange.addEventListener("click", this.changeFace.bind(this));
+}
+
+// gfx display functions
+function MakeCanvas(canvasInfo) {
+  this.webglIsAvailable = ( function () {
+    try {
+      var canvas = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
+    } catch ( e ) {
+      return false;
+    }
+  } )();
+
+  if(!this.webglIsAvailable) {
+    var span = document.createElement("span");
+    span.innerText = "WebGL is not support in your browser.";
+    if(cc) {
+      cc.appendChild(span);
+    } else {
+      console.error("cannot find canvas container");
+    }
+    return;
+  }
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.OrthographicCamera((canvasInfo.width/64) / -2, (canvasInfo.width/64) / 2, (canvasInfo.height/64) / 2, (canvasInfo.height/64) / -2, .1, 1000);
+  // var camera = new THREE.PerspectiveCamera(45, canvasInfo.width / canvasInfo.height, .1, 1000);
+  camera.position.y = 15;
+  camera.rotation.x = 4.75;
+
+  // console.log(camera.rotation);
+
+  var renderer = new THREE.WebGLRenderer();
+  renderer.setSize(canvasInfo.width, canvasInfo.height);
+  var cc = document.querySelector(".canvas-container");
+  if(cc) {
+    cc.appendChild(renderer.domElement);
+  } else {
+    console.error("cannot find canvas container");
+  }
+
+  this.renderScene = function () {
+    var val = document.querySelector(".blur-render").checked;
+    if(document.hasFocus() || val) {
+      renderer.render(scene, camera);
+    }
+  }
+}
+
+function createCube({x,y,z,color} = {
+  x: 0,
+  y: 0,
+  z: -.5,
+  color: 0x00ff00
+}) {
+  var geometry = new THREE.BoxGeometry(1, 0, 1);
+  var material = new THREE.MeshBasicMaterial({ color });
+  var cube = new THREE.Mesh(geometry, material);
+  cube.position.z = z;
+
+  var bbox = new THREE.Box3(
+    new THREE.Vector3(),
+    new THREE.Vector3()
+  );
+  bbox.setFromObject(cube);
+  bbox.update = function () {
+    bbox.setFromCenterAndSize(cube.position, cube.scale);
+  }
+
+  console.log(cube, bbox);
+  return {
+    mesh: cube,
+    bbox,
+    move: function (axis) {
+      var posDirs = {
+        x: {
+          "l": -0.1,
+          "r": 0.1,
+        },
+        z: {
+          "u": -0.1,
+          "d": 0.1,
+        },
+      };
+
+      var axisValuesArray = axis.split("");
+      axisValuesArray.map(dir => {
+        cube.position.x += posDirs.x[dir] || 0;
+        cube.position.z += posDirs.z[dir] || 0;
+      });
+      // console.log(dir);
+      bbox.update();
+    }
+  };
+}
+
+function createCharacterSprite() {
+  var spriteMap = new THREE.TextureLoader().load("./amorrius-logo.png");
+  var material = new THREE.SpriteMaterial({ map: spriteMap, color: 0xffffff });
+  var sprite = new THREE.Sprite(material);
+  sprite.scale.set(1, 1, 1);
+  sprite.position.z = -.5;
+
+  return {
+    sprite,
+    move: function (axis) {
+      var posDirs = {
+        x: {
+          "l": -0.1,
+          "r": 0.1,
+        },
+        z: {
+          "u": -0.1,
+          "d": 0.1,
+        },
+      };
+
+      var axisValuesArray = axis.split("");
+      axisValuesArray.map(dir => {
+        sprite.position.x += posDirs.x[dir] || 0;
+        sprite.position.z += posDirs.z[dir] || 0;
+      });
+      // console.log(dir);
+      bbox.update();
+    }
+  }
+}
+
+function testIntersect(subject1, subject2) {
+  var coll = subject1.intersectsBox(subject2);
+  return coll;
 }
