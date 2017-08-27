@@ -103,6 +103,7 @@ var speaker = (function () {
     msg.pitch = 0;
   };
   var msg = new SpeechSynthesisUtterance();
+  msg.volume = .5;
   msg.text = "Okay. This is a test";
   if(voice) msg.voice = voice;
   if(voice) console.log(voice.name, voice.lang);
@@ -712,8 +713,19 @@ function getCharacters() {
     kicksNum: ["1", "2", "7", "1+2+7", "1+2", "2+7", "1+7"]
   }
 
+  // sample.
+  // the idea behind this code is that at some point we'll have hitbox data in an array.
+  // hitboxes need to go away after hitting, right? this will maintain a reference to a hitbox
+  // var obj = { foo: "foo" };
+  //
+  // var arr = [obj, obj];
+  //
+  // obj.foo = "foo2";
+  //
+  // console.log(arr);
+
   function generalMovementFunc(action, dir) {
-    console.log(dir, action);
+    // console.log(dir, action);
   }
   var characters = {
     ryu: {
@@ -865,27 +877,27 @@ function getCharacters() {
                 norm: {
                   displayName: "Hadouken",
                   frameData: {
-                    SU: 5,
-                    A: 5,
-                    R: 30
+                    SU: 14,
+                    A: 0,
+                    R: 33
                   },
                   func: function() { console.log("performing move:", this.displayName); },
                 },
                 ex: {
                   displayName: "Hadouken",
                   frameData: {
-                    SU: 5,
-                    A: 5,
-                    R: 30
+                    SU: 14,
+                    A: 0,
+                    R: 33
                   },
                   func: function() { console.log("performing move:", "EX", this.displayName); },
                 },
                 sup: {
                   displayName: "Shinku Hadouken",
                   frameData: {
-                    SU: 5,
-                    A: 5,
-                    R: 30
+                    SU: 4,
+                    A: 0,
+                    R: 61
                   },
                   func: function() { console.log("performing move:", this.displayName); }
                 }
@@ -1147,16 +1159,20 @@ function populateCharacters() {
 
     [p1SideElem, p2SideElem].map((elem, side) => {
       var uniqueButton = button.cloneNode(true);
-      uniqueButton.addEventListener( "click", setPuppet.bind(null, charName, "player" + (side+1)) );
+      uniqueButton.addEventListener( "click", function() {
+        var playerID = "player" + (side+1);
+        var player = players[playerID];
+        setPuppet(charName, player);
+        gfxDisplay.addCharacter(player);
+      });
       elem.appendChild(uniqueButton);
     });
     button = null;
   });
 }
 
-function setPuppet(charName, playerID) {
+function setPuppet(charName, player) {
   var characters = getCharacters();
-  var player = players[playerID];
   switch (charName) {
     case "ryu":
       if(player) player.setPlayerPuppet( /*new Character*/(characters[charName]) ); else console.warn("no player to set");
@@ -1365,13 +1381,25 @@ function Player(data) {
       );
     });
 
-    this.facing = "right";
-    this.canTakeInput = true;
-    this.lastDirection = "n";
+    this.actionState = {
+      canTakeInput: true,
+      recovery: 0,
+      inputsToPurge: null,
+      lastDirection: "n",
+
+      position: {
+        grounded: true,
+        crouched: false,
+        facing: "right",
+      }
+    };
     // this.padInfo = data.padInfo || null;
     // console.log(this);
     this.activeActionsArray = this.actionsArray;
     this.puppet = null;
+    this.characterData = {
+      mesh: null
+    };
     console.log(this);
   }.bind(this, data)();
 
@@ -1413,20 +1441,22 @@ function Player(data) {
     // console.log(phase, time, this.activeProps.dashState.dir);
   }
 
-  this.setActionState = function(action, state) {
-    switch (action) {
-      case "input":
-        [
-          "canTakeInput",
-          "recovery",
-          "inputsToPurge",
-          "lastDirection",
-        ].map(name => {
-          // console.log(name, state[name], state[name] !== undefined);
-          state[name] !== undefined ? this[name] = state[name] : null
-        });
-        break;
-    }
+  this.setActionState = function(state) {
+    Object.keys(state).map(name => {
+      switch (name) {
+        case "grounded":
+        case "crouched":
+          state[name] !== undefined ? this.actionState.position[name] = state[name] : null
+          break;
+        case "canTakeInput":
+        case "recovery":
+        case "inputsToPurge":
+        case "lastDirection":
+        default:
+          state[name] !== undefined ? this.actionState[name] = state[name] : null
+          break;
+      }
+    });
   };
 
   this.changeFace = function() {
@@ -1437,25 +1467,52 @@ function Player(data) {
 
   this.performFrameActions = function (padInfo, inputs) {
     if(!this.puppet) return console.warn("No puppet");
-    // console.log(this.recovery);
-    if(this.recovery === 1) {
-      // console.log(this.inputsToPurge);
-      if(this.inputsToPurge) this.inputsToPurge.map((_, ind) => {
-        var place = padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]);
-        // console.log(padInfo.recordedInputs.indexOf(this.inputsToPurge[ind]));
+    // console.log(this.actionState.recovery);
+    if(this.actionState.recovery === 1) {
+      // console.log(this.actionState.inputsToPurge);
+      if(this.actionState.inputsToPurge) this.actionState.inputsToPurge.map((_, ind) => {
+        var place = padInfo.recordedInputs.indexOf(this.actionState.inputsToPurge[ind]);
+        // console.log(padInfo.recordedInputs.indexOf(this.actionState.inputsToPurge[ind]));
         if(place >= 0) padInfo.recordedInputs[place] = null;
       });
-      this.inputsToPurge = null;
+      this.actionState.inputsToPurge = null;
       // console.log(padInfo.recordedInputs);
     }
-    // if(this.recovery) console.log(this.recovery);
-    if(this.recovery > 0) this.recovery--;
-    this.setActionState("input", {
-      canTakeInput: this.canTakeInput || this.recovery === 0,
-      recovery: this.recovery
+    // if(this.actionState.recovery) console.log(this.actionState.recovery);
+    if(this.actionState.recovery > 0) this.actionState.recovery--;
+    this.setActionState({
+      canTakeInput: this.actionState.canTakeInput || this.actionState.recovery === 0,
+      recovery: this.actionState.recovery
     });
-    if(this.recovery <= 6 || this.canTakeInput) this.polishInputData(padInfo, inputs);
+    if(this.actionState.recovery <= 6 || this.actionState.canTakeInput) {
+      this.checkAndSetPositionActionState(padInfo, inputs);
+      this.polishInputData(padInfo, inputs);
+      if(this.actionState.canTakeInput) this.captureMove(padInfo, inputs.axis);
+    }
     alterDashState();
+    console.log("Grounded: %s; Crouched: %s", this.actionState.position.grounded, this.actionState.position.crouched);
+  }
+
+  this.checkAndSetPositionActionState = function (padInfo, inputs) {
+    var grounded;
+    var crouched;
+
+    grounded = true;
+
+    if(grounded) {
+      if(inputs.oneAxis) {
+        crouched = inputs.oneAxis === "d";
+      } else {
+        crouched = this.actionState.crouched;
+      }
+    } else {
+      crouched = false;
+    }
+
+    this.setActionState({
+      grounded,
+      crouched
+    });
   }
 
   this.polishInputData = function(padInfo, inputs) {
@@ -1617,7 +1674,6 @@ function Player(data) {
     }
 
     displayInputs(parentArray, padInfo);
-    this.captureMove(padInfo, inputs.axis);
   }
 
   this.captureMove = function(padInfo, axis) {
@@ -1660,7 +1716,7 @@ function Player(data) {
           var action = movesCaptured[key];
           if(!action) return;
 
-          if(this.canTakeInput) doAttack.bind(this, action, meter, key)();
+          if(this.actionState.canTakeInput) doAttack.bind(this, action, meter, key)();
         });
       } else {
         // do normal or movements
@@ -1703,7 +1759,7 @@ function Player(data) {
       function tryMovement() {
         // do movement
         direction = normalizeDirection(axis, faceDirectionTransformGuide).toUpperCase();
-        if(direction.toLowerCase() === this.lastDirection) return;
+        if(direction.toLowerCase() === this.actionState.lastDirection) return;
         // console.log(direction);
         if(this.activeProps.dashState.phase === "canDash") {
           if(direction === this.activeProps.dashState.dir) {
@@ -1759,7 +1815,7 @@ function Player(data) {
         speaker.setText(text);
         speaker.speak();
 
-        this.setActionState("input", {
+        this.setActionState({
           canTakeInput: false,
           recovery: action.recovery || 20,
           inputsToPurge: whatImWorkingWith.map((_, ind) => record[record.length - (whatImWorkingWith.length - ind)])
@@ -1772,14 +1828,14 @@ function Player(data) {
       function doMovement(action, direction, stats) {
         var xAxisDirection = direction.split("").pop().toLowerCase()
         var capitalAction = action.replace(/(.)/, (_, l) => l.toUpperCase());
-        var statNode = stats[xAxisDirection + capitalAction] || {};
+        var statName = xAxisDirection + capitalAction;
+        var statNode = stats[statName] || {};
         var text = statNode.name || xAxisDirection + " " + action;
         speaker.setText(text);
         speaker.speak();
-        // console.log(text);
-
         // console.log(xAxisDirection);
-        this.setActionState("input", {
+
+        this.setActionState({
           canTakeInput: false,
           recovery: statNode.SU + statNode.A + statNode.R || 0,
           inputsToPurge: whatImWorkingWith.pop(),
@@ -1787,7 +1843,7 @@ function Player(data) {
         });
 
         // move function
-        // console.log(this.lastDirection);
+        // console.log(this.actionState.lastDirection);
         this.puppet.movementFunc(action, xAxisDirection);
       }
       // console.log("what I matched is what I want", whatImatchedIsWhatIwant, text, whatImatchedJoined, whatIwantJoined);
@@ -1795,7 +1851,7 @@ function Player(data) {
 
     // this.activeActionsArray.slice(0,1).map(action => {
     this.activeActionsArray.map((action, actionInd) => {
-      if(!this.canTakeInput) return;
+      if(!this.actionState.canTakeInput) return;
       // var action = this.activeActionsArray[actionInd];
       var occupied = false, alreadyUsed = false;
       // if we already have moves to work with then no other moves need checking
@@ -2066,6 +2122,16 @@ function MakeCanvas(canvasInfo) {
     cc.appendChild(renderer.domElement);
   } else {
     console.error("cannot find canvas container");
+  }
+
+  this.addCharacter = function (player) {
+    if(player) {
+      var character = createCube();
+      scene.add(character.mesh);
+      player.characterData.mesh = character;
+    } else {
+      console.warn("A player was not provided");
+    }
   }
 
   this.renderScene = function () {
