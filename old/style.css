@@ -1,0 +1,146 @@
+.display {
+  display: flex;
+}
+
+.stick, .buttons {
+  /*display: inline-flex;*/
+}
+
+.stick {
+  display: inline-flex;
+  margin: 0 45px;
+  align-items: center;
+  justify-content: center;
+}
+
+.base {
+  min-width: 100px;
+  height: 100px;
+  border-radius: 100%;
+  background-color: rgba(40, 40, 40, 1);
+  box-shadow: inset 0 0 0 1px black;
+}
+
+.ball {
+  position: relative;
+  min-width: 100px;
+  height: 100px;
+  border-radius: 100%;
+  background-color: rgba(0, 0, 0, 1);
+}
+
+.ball .shine {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 30px;
+  height: 25px;
+  transform: rotateZ(-25deg);
+  border-radius: 100%;
+  background-color: white
+}
+
+.ball.u {
+  top: -45px;
+}
+.ball.ur {
+  top: -40px;
+  left: 40px;
+}
+.ball.r {
+  left: 45px;
+}
+.ball.dr {
+  top: 40px;
+  left: 40px;
+}
+.ball.d {
+  top: 45px;
+}
+.ball.dl {
+  top: 40px;
+  left: -40px;
+}
+.ball.l {
+  left: -45px;
+}
+.ball.ul {
+  top: -40px;
+  left: -40px;
+}
+
+.btn {
+  display: inline-flex;
+  margin: 5px;
+  min-width: 80px;
+  height: 80px;
+  border-radius: 60px;
+  background-color: rgba(30, 30, 30, 1);
+  box-shadow: inset 0 0 5px 5px black;
+  color: white;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn span {
+  padding: 16px;
+}
+
+.btn.configuring {
+  box-shadow: 0 0 10px 4px rgba(0, 100, 255, 1);
+}
+
+.btn.pressed {
+  background-color: rgba(125, 125, 125, 1);
+  box-shadow: inset 0 0 5px 5px rgba(175, 175, 175, 1);
+}
+
+.css-button {
+  padding: 4px;
+  border-radius: 5px;
+  background-color: rgba(30, 30, 30, 1);
+  box-shadow: inset 0 0 2px 2px black;
+  color: white;
+}
+
+.inputs {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column-reverse;
+}
+
+.inputs > div {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+}
+
+.input-img.u { /*do nothing. It's already up*/ }
+.input-img.ur { transform: rotateZ(45deg); }
+.input-img.r { transform: rotateZ(90deg); }
+.input-img.dr { transform: rotateZ(135deg); }
+.input-img.d { transform: rotateZ(180deg); }
+.input-img.dl { transform: rotateZ(225deg); }
+.input-img.l { transform: rotateZ(270deg); }
+.input-img.ul { transform: rotateZ(315deg); }
+
+#in-view-inputs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 0px;
+  box-shadow: 0 0 0 4px red;
+}
+
+#characters .options {
+  display: flex;
+}
+
+#characters .player-1-side {
+  border-right: 2px solid black;
+}
+
+canvas {
+  background: red;
+}

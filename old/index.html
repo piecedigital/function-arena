@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Function Arena</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class=""><span>FPS</span>: <span id="fps"></span></div>
+    <div class=""><span>Processing Time</span>: <span id="proctime"></span></div>
+    <div class="game-area">
+      <div class="canvas-container"></div>
+    </div>
+    <select id="sticks" name=""></select>
+    <label for="">Render out of focus?: <input type="checkbox" class="blur-render" name="" value=""></label>
+    <div class="display">
+      <div class="stick">
+        <div class="base">
+          <div class="ball">
+            <div class="shine"></div>
+          </div>
+        </div>
+      </div>
+      <div class="buttons">
+        <div class="row">
+          <div class="btn btn-10" onclick="startConfig(10)"><span>Start</span></div>
+          <div class="btn btn-11" onclick="startConfig(11)"><span>Home</span></div>
+          <div class="btn btn-9" onclick="startConfig(9)"><span>Select</span></div>
+        </div>
+        <div class="row">
+          <div class="btn btn-1 btn-lp" onclick="startConfig('lp')"></div>
+          <div class="btn btn-4 btn-mp" onclick="startConfig('mp')"></div>
+          <div class="btn btn-6 btn-hp" onclick="startConfig('hp')"></div>
+          <div class="btn btn-5 btn-3p" onclick="startConfig('3p')"></div>
+        </div>
+        <div class="row">
+          <div class="btn btn-2 btn-lk" onclick="startConfig('lk')"></div>
+          <div class="btn btn-3 btn-mk" onclick="startConfig('mk')"></div>
+          <div class="btn btn-8 btn-hk" onclick="startConfig('hk')"></div>
+          <div class="btn btn-7 btn-3k" onclick="startConfig('3k')"></div>
+        </div>
+      </div>
+    </div>
+    <div class="axes"></div>
+    <div class="">
+      <button type="button" name="button" id='facechange'>Facing: <span id="facing">right</span></button>
+    </div>
+    <div id="characters">
+      <h2>Characters:</h2>
+      <div class="options">
+        <div class="player-1-side"></div>
+        <div class="player-2-side"></div>
+      </div>
+    </div>
+    <div class="inputs">
+      <div id="in-view-inputs"></div>
+    </div>
+    <!-- <script type="text/javascript" src="https://raw.githubusercontent.com/lo-th/Oimo.js/gh-pages/build/oimo.js"></script> -->
+    <script type="text/javascript" src="./three.js"></script>
+    <script type="text/javascript" src="./main.js"></script>
+    <script type="text/javascript">
+      // var scene = new THREE.Scene();
+      // var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+      //
+      // var renderer = new THREE.WebGLRenderer();
+      // renderer.setSize( window.innerWidth, window.innerHeight );
+      // document.body.appendChild( renderer.domElement );
+      //
+      // var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+      // var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+      // var cube = new THREE.Mesh( geometry, material );
+      // scene.add( cube );
+      //
+      // camera.position.z = 5;
+      // var renderScene = function () {
+      //   requestAnimationFrame(renderScene);
+      //   renderer.render( scene, camera );
+      // };
+      // renderScene();
+    </script>
+  </body>
+</html>
