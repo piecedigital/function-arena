@@ -2,8 +2,8 @@ HTMLElement.prototype.hasClass = function(stringOrArray) {
   if(!this) return console.error("No element found");
   if(!this.className) return false;
 
-  var proceed = function(type) {
-    var yes = false;
+  const proceed = function(type) {
+    let yes = false;
 
     switch (type) {
       case "Array": yes = stringOrArray.map(check) || yes; break;
@@ -12,153 +12,171 @@ HTMLElement.prototype.hasClass = function(stringOrArray) {
     return yes;
   }
 
-  var check = function(text) {
+  const check = function(text) {
     return this.className.split(" ").indexOf(text) >= 0;
   }.bind(this);
 
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  const type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
   switch (type) {
     case "String":
     case "Array":
       return proceed(type);
-    break;
   }
 }
 
 HTMLElement.prototype.addClass = function(stringOrArray) {
   if(!this) return console.error("No element found");
-  var proceed = function(type) {
+  const proceed = function(type) {
     switch (type) {
       case "Array": stringOrArray.map(add).join(" "); break;
       case "String": add(stringOrArray); break;
     }
   }
 
-  var add = function(text) {
-    var arr = this.className ? this.className.split(" ") : [];
+  const add = function(text) {
+    const arr = this.className ? this.className.split(" ") : [];
     if(arr.indexOf(text) !== -1) return;
     arr.push(text);
-    var joined = arr.join(" ");
+    const joined = arr.join(" ");
     this.className = joined;
   }.bind(this);
 
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  const type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
   proceed(type);
 }
 
 HTMLElement.prototype.removeClass = function(stringOrArray) {
   if(!this) return console.error("No element found");
-  var proceed = function(type) {
+  const proceed = function(type) {
     switch (type) {
       case "Array": stringOrArray.map(remove).join(" "); break;
       case "String": remove(stringOrArray); break;
     }
   }
 
-  var remove = function(text) {
-    var arr = this.className ? this.className.split(" ") : [];
-    var place = arr.indexOf(text);
+  const remove = function(text) {
+    const arr = this.className ? this.className.split(" ") : [];
+    const place = arr.indexOf(text);
     if(place < 0) return this.className;
     arr.splice(place, 1);
     this.className = arr.join(" ");
   }.bind(this);
 
-  var type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
+  const type = Object.prototype.toString.call(stringOrArray).match(/([a-z]+)]/i)[1];
   proceed(type);
 }
 
-copyObject = function (obj) {
+const copyObject = function (obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-var realType = function (data) {
+const realType = function (data) {
   return Object.prototype.toString.call(data).split(" ").pop().replace(/.$/, "").toLowerCase();
 }
 
-var gamepads = {};
-var configuring = false;
-var knownAxis;
-var canvasScale = .7;
-var canvasScaleMin = .6;
-var canvasScaleMax = 1;
-var canvasScaleValue = .5;
-var canvasInfo = {
+const typeError = function (variable, expectedType, data) {
+  console.error(TypeError(`Expected '${variable}' to be of type '${expectedType}'; got type '${realType(data)}'`));
+}
+
+const classError = function (variable, expectedClass, data) {
+  console.error(TypeError(`Expected '${variable}' to be of class '${expectedClass}'; got type '${data.constructor.name}'`));
+}
+
+
+const foo: number = "string";
+const gamepads = {};
+const configuring = false;
+let knownAxis;
+const canvasScale = .7;
+const canvasScaleMin = .6;
+const canvasScaleMax = 1;
+const canvasScaleValue = .5;
+const canvasInfo = {
   width: 1920 * (canvasScale * canvasScaleValue),
   height: 1080 * (canvasScale * canvasScaleValue),
   stageWidth: 1200
 }
-var inputImages = {};
-var players = {
+const inputImages = {};
+const players = {
   player1: null,
   player2: null
 };
 
+// class Pad
+const Pad = function({id, name, index, configuration}) {
+  this.name = name;
+  this.index = index;
+  this.configuration = configuration;
+  this.recordedInputs = [];
+  this.maxRecordedInputs = 50;
+  this.readCount = 0;
+  this.maxReadCount = 10;
+  this.retireRecordedFrameTime = (1000 / 60) * 50;
+  this.noInputFrames = 0;
+  this.maxNoInputFrames = 25;
+  this.player = null;
+  this.axes = {
+    ind: 9,
+    "3.29": "n",
+    "-1.00": "u",
+    "-0.71": "ur",
+    "-0.43": "r",
+    "-0.14": "dr",
+    "0.14": "d",
+    "0.43": "dl",
+    "0.71": "l",
+    "1.00": "ul",
+    "-0.03": "n",
+    "12.00": "u",
+    "1215.00": "ur",
+    "15.00": "r",
+    "1315.00": "dr",
+    "13.00": "d",
+    "1314.00": "dl",
+    "14.00": "l",
+    "1214.00": "ul"
+  };
+}
+
 // class Controllers
-var Controllers = function () {
+const Controllers = function () {
   (function constructor() {
     this.gamepads = {};
     this.configuring = {};
   })();
 
-  var normalizeID = function(id) {
+  const normalizeID = function(id) {
     if(realType(data) !== "string") {
-      console.error("ID is not of type string");
+      typeError("id", "string", id);
       return null;
     }
     return id.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s/g, "-");
   }
 
-  var addPad = function(e) {
+  const addPad = function(e) {
     // console.log(e.gamepad);
-    var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
+    const name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
     // console.log(name);
-    this.gamepads[name] = {
-      name: name,
+    this.gamepads[name] = new Pad({
+      name,
       index: e.gamepad.index,
-      configuration: e.configuration || {},
-      recordedInputs: [],
-      maxRecordedInputs: 50,
-      readCount: 0,
-      maxReadCount: 10,
-      retireRecordedFrameTime: (1000 / 60) * 50,
-      noInputFrames: 0,
-      maxNoInputFrames: 25,
-      player: null,
-      axes: {
-        ind: 9,
-        "3.29": "n",
-        "-1.00": "u",
-        "-0.71": "ur",
-        "-0.43": "r",
-        "-0.14": "dr",
-        "0.14": "d",
-        "0.43": "dl",
-        "0.71": "l",
-        "1.00": "ul",
-        "-0.03": "n",
-        "12.00": "u",
-        "1215.00": "ur",
-        "15.00": "r",
-        "1315.00": "dr",
-        "13.00": "d",
-        "1314.00": "dl",
-        "14.00": "l",
-        "1214.00": "ul"
-      }
-    };
+      id: e.gamepad.id,
+      configuration: e.configuration
+    });
   }
 
-  var removePad = function(e) {
+  const removePad = function(e) {
+    if(realType(e) !== "object") return typeError("e", "object", e);
     // console.log(e.gamepad);
-    var name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
+    const name = "i" + e.gamepad.index + "-" + normalizeID(e.gamepad.id);
     delete gamepads[name];
   }
 
-  var getGamepads = function() {
-    var pads = navigator.getGamepads();
+  const getPads = function() {
+    const pads = navigator.getGamepads();
     Object.keys(pads).map(function (num) {
       if(pads[num]) {
-        var configuration = null;
+        let configuration = null;
         if(pads[num].mapping === "standard") {
           configuration = {
             "0": 1, // lp
@@ -166,7 +184,7 @@ var Controllers = function () {
             "2": 0 // mk
           }
         }
-        var name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
+        const name = "i" + pads[num].index + "-" + normalizeID(pads[num].id);
 
         // console.log("Gamepad Found!");
         if(!gamepads[name]) addPad({
@@ -183,7 +201,7 @@ Controllers.prototype.startConfigButton = function(controllerName, btn) {
 }
 
 Controllers.prototype.setConfigButton = function(controllerName, btn) {
-  var map = {
+  const map = {
     lp: 0,
     mp: 3,
     hp: 5,
@@ -198,22 +216,25 @@ Controllers.prototype.setConfigButton = function(controllerName, btn) {
   this.configuring[controllerName] = null;
 }
 
-Controllers.prototype.checkPad = function(padInfo) {
-  // var gamepad = navigator.getGamepads()[gamepadIndex]
-  var gamepadIndex = padInfo.index;
-  var gamepadName = padInfo.name;
+Controllers.prototype.checkPad = function(pad) {
+  if(!(pad instanceof Pad)) {
+    return classError("pad", "Pad", pad);
+  }
+  // const gamepad = navigator.getGamepads()[gamepadIndex]
+  const gamepadIndex = pad.index;
+  const gamepadName = pad.name;
   // console.log(navigator.getGamepads()[gamepadIndex], gamepadName);
-  padInfo.depressed = padInfo.depressed || {};
-  var depressed = padInfo.depressed;
-  padInfo.test = padInfo.test || [];
+  pad.depressed = pad.depressed || {};
+  const depressed = pad.depressed;
+  pad.test = pad.test || [];
 
-  var returnData = {};
+  const returnData = {};
 
   // main loop
-  var gamepad = navigator.getGamepads()[gamepadIndex]
+  const gamepad = navigator.getGamepads()[gamepadIndex]
   // if(primaryController(gamepad)) console.log(gamepadName); else return;
   if(!primaryController(gamepad)) return;
-  var onePress = {}, oneRelease = {};
+  const onePress = {}, oneRelease = {};
   if(gamepad) gamepad.buttons.map(function (btn, ind) {
     // console.log(btn);
     if(btn.pressed) {
@@ -240,17 +261,17 @@ Controllers.prototype.checkPad = function(padInfo) {
     breakdownButton(buttons, function (usedButton) {
       // console.log("pressed", usedButton);
       // console.log(buttons);
-      if(!padInfo.player) {
+      if(!pad.player) {
         if(!players.player1) {
           players.player1 = new Player({
-            padInfo
+            pad
           });
-          padInfo.player = players.player1;
+          pad.player = players.player1;
         } else if(!players.player2) {
           players.player2 = new Player({
-            padInfo
+            pad
           });
-          padInfo.player = players.player2;
+          pad.player = players.player2;
         }
       }
       if(configuring !== false) {
@@ -262,7 +283,7 @@ Controllers.prototype.checkPad = function(padInfo) {
   }
   function buttonsAreDepressedAndAxes(buttons, axes) {
     // console.log("start");
-    var padButtonsObj = {};
+    const padButtonsObj = {};
     breakdownButton(buttons, function (usedButton) {
       // console.log("depressed", usedButton, buttons);
       if(buttons["12"]) padButtonsObj[12] = 12;
@@ -284,7 +305,7 @@ Controllers.prototype.checkPad = function(padInfo) {
 
   function breakdownButton(buttons, cb) {
     Object.keys(buttons).map(function (btn) {
-      var usedButton = getButton(padInfo, btn);
+      const usedButton = getButton(pad, btn);
       // console.log(checked, usedButton);
       // console.log(btn, "(" + (parseInt(btn) + 1) + ")", "Config:", usedButton);
       cb(usedButton);
@@ -293,10 +314,10 @@ Controllers.prototype.checkPad = function(padInfo) {
 
   function axisData(axes) {
     // console.log(axes);
-    var axPlus = axes.reduce((m,n) => m + n);
+    const axPlus = axes.reduce((m,n) => m + n);
     // console.log(axPlus);
-    var value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
-    var input = getStickInput(value) || "n";
+    const value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
+    const input = getStickInput(value) || "n";
     // console.log(value);
     if(input) returnData.axis = input;
     if(input && ballTop && !ballTop.hasClass(input)) {
@@ -314,17 +335,17 @@ Controllers.prototype.checkPad = function(padInfo) {
   }
 
   function convert(data) {
-    var newData = {
+    const newData = {
       axis: data.axis,
     };
     if(data.oneAxis) newData.oneAxis = data.oneAxis;
     // console.log(data);
     ["onePress", "depressed", "oneRelease"].map(state => {
-      var stateData = data[state];
+      const stateData = data[state];
       if(!stateData) return;
-      var newStateData = {};
+      const newStateData = {};
       Object.keys(stateData).map(btn => {
-        newStateData[getButton(padInfo, btn)] = true;
+        newStateData[getButton(pad, btn)] = true;
       });
 
       newData[state] = newStateData;

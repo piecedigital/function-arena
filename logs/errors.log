@@ -1,0 +1,18 @@
+milliseconds;time;error;message
+
+[1509548869198] [Wed, 01 Nov 2017 15:07:49 GMT] [error] [Command failed: browserify ./dist/main.js --debug -g [ envify --NODE_ENV 'production' ] | uglifyjs > ./dist/main-live.js
+'browserify' is not recognized as an internal or external command,
+operable program or batch file.
+]
+[1509548869198] [Wed, 01 Nov 2017 15:07:49 GMT] [error] [Command failed: browserify ./dist/main.js --debug -o ./dist/main.js
+'browserify' is not recognized as an internal or external command,
+operable program or batch file.
+]
+[1509550434738] [Wed, 01 Nov 2017 15:33:54 GMT] [error] [Command failed: browserify ./dist/main.js --debug -g [ envify --NODE_ENV 'production' ] | uglifyjs > ./dist/main-live.js
+'uglifyjs' is not recognized as an internal or external command,
+operable program or batch file.
+]
+[1509550472512] [Wed, 01 Nov 2017 15:34:32 GMT] [error] [Command failed: browserify ./dist/main.js --debug -g [ envify --NODE_ENV 'production' ] | uglifyjs > ./dist/main-live.js
+'uglifyjs' is not recognized as an internal or external command,
+operable program or batch file.
+]
