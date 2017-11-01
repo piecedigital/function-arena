@@ -82,7 +82,6 @@ const classError = function (variable, expectedClass, data) {
   console.error(TypeError(`Expected '${variable}' to be of class '${expectedClass}'; got type '${data.constructor.name}'`));
 }
 
-
 const foo: number = "string";
 const gamepads = {};
 const configuring = false;
@@ -101,6 +100,86 @@ const players = {
   player1: null,
   player2: null
 };
+
+let speaker = (function () {
+  let voices, voice;
+  speechSynthesis.onvoiceschanged = function () {
+    voices = speechSynthesis.getVoices();
+    voice = voices[12];
+    // console.log("got my voice:", voice);
+    msg.voice = voice;
+    msg.pitch = 0;
+  };
+  let msg = new SpeechSynthesisUtterance();
+  msg.volume = .5;
+  msg.text = "Okay. This is a test";
+  if(voice) msg.voice = voice;
+  if(voice) console.log(voice.name, voice.lang);
+  return {
+    speak: function () {
+      // msg.pitch = Math.random() * 2;
+      // if(speechSynthesis.speaking) {
+      // }
+      speechSynthesis.cancel();
+      speechSynthesis.speak(msg)
+    },
+    setText: function (text) {
+      msg.text = text || msg;
+    },
+    setPitch: function (num) {
+      if(typeof num === "number") {
+        msg.pitch = num;
+      }
+    },
+    setVoice: function (num) {
+      if(voices && typeof num === "number") {
+        // console.log(voices[num]);
+        voice = voices[num] || voice;
+        if(voice !== msg.voice) msg.voice = voice;
+        // console.log(voice);
+      }
+    }
+  }
+})();
+
+let gfxDisplay = new MakeCanvas(canvasInfo);
+
+// create input images
+[
+  "lp",
+  "mp",
+  "hp",
+  "lmhp",
+  "lk",
+  "mk",
+  "hk",
+  "lmhk",
+  // "n",
+  "u",
+  "ur",
+  "r",
+  "dr",
+  "d",
+  "dl",
+  "l",
+  "ul"
+].map((input, ind) => {
+  let name;
+  if(ind >= 8) name = "u";
+  let img = document.createElement("img");
+  let imgObj = {};
+  img.className = "input-img " + input;
+  img.src = "images/" + (name || input) + ".png";
+  imgObj.className = "input-img " + input;
+  imgObj.src = "images/" + (name || input) + ".png";
+  inputImages[input] = imgObj;
+  // console.log(input, name);
+});
+
+let framesCounted = 0;
+let ballTop = document.querySelector(".stick .ball");
+let inputDisplay = document.querySelector(".inputs");
+
 
 // class Pad
 const Pad = function({id, name, index, configuration}) {
@@ -360,3 +439,224 @@ Controllers.prototype.checkPad = function(pad) {
 Controllers.prototype.humanizeButton = function(btn) {
   return parseInt(btn) + 1;
 }
+
+Controllers.prototype.getButton = function(pad, btn) {
+  if(!(pad instanceof Pad)) return classError("pad", "Pad", pad);
+  if(realType(btn) !== "number") return typeError("btn", "number", btn);
+
+  // var value = this.gamepads[pad.name].configuration[btn];
+  var value = this.gamepads[pad.name].configuration[btn];
+  var returnValue = typeof value === "number" ? parseInt(value) : parseInt(btn);
+  return returnValue;
+}
+
+Controllers.prototype.addListeners = function () {
+  window.addEventListener("gamepadconnected", function(e) {
+    console.log("Gamepad Connected!");
+  });
+    this.addPad(e);
+
+  window.addEventListener("gamepaddisconnected", function(e) {
+    console.log("Gamepad Disconnected!");
+    this.removePad(e);
+  });
+}
+
+Controllers.prototype.highlightButton = function(usedButton, released) {
+  if(realType(usedButton) !== "number") return typeError("usedButton", "number", usedButton);
+  if(realType(released) !== "boolean") return typeError("released", "number", released);
+
+  var elem = document.querySelector(".btn-" + this.humanizeButton(usedButton));
+  if(!elem) return;
+  if(released) {
+    elem.removeClass("pressed");
+  } else {
+    elem.addClass("pressed");
+  }
+}
+
+Controllers.prototype.checkPad = function(padInfo) {
+  // var gamepad = navigator.getGamepads()[gamepadIndex]
+  var gamepadIndex = padInfo.index;
+  var gamepadName = padInfo.name;
+  // console.log(navigator.getGamepads()[gamepadIndex], gamepadName);
+  padInfo.depressed = padInfo.depressed || {};
+  var depressed = padInfo.depressed;
+  padInfo.test = padInfo.test || [];
+
+  var returnData = {};
+
+  // main loop
+  var gamepad = navigator.getGamepads()[gamepadIndex]
+  // if(primaryController(gamepad)) console.log(gamepadName); else return;
+  if(!primaryController(gamepad)) return;
+  var onePress = {}, oneRelease = {};
+  if(gamepad) gamepad.buttons.map(function (btn, ind) {
+    // console.log(btn);
+    if(btn.pressed) {
+      if(!depressed[ind]) {
+        onePress[ind] = true;
+      }
+      depressed[ind] = true;
+    } else {
+      if(depressed[ind]) oneRelease[ind] = true;
+      delete depressed[ind];
+    }
+  });
+
+  if(Object.keys(onePress).length > 0) returnData.onePress = onePress;
+  if(Object.keys(depressed).length > 0) returnData.depressed = depressed;
+  // if(Object.keys(oneRelease).length > 0) returnData.oneRelease = oneRelease;
+
+  buttonsPressedOnce(onePress);
+  buttonsAreDepressedAndAxes(depressed, gamepad.axes);
+  buttonsReleasedOnce(oneRelease);
+  // end loop
+
+  function buttonsPressedOnce(buttons) {
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("pressed", usedButton);
+      // console.log(buttons);
+      if(!padInfo.player) {
+        if(!players.player1) {
+          players.player1 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player1;
+        } else if(!players.player2) {
+          players.player2 = new Player({
+            padInfo
+          });
+          padInfo.player = players.player2;
+        }
+      }
+      if(configuring !== false) {
+        setConfig(gamepadName, usedButton);
+      } else {
+        highlightButton(usedButton);
+      }
+    });
+  }
+  function buttonsAreDepressedAndAxes(buttons, axes) {
+    // console.log("start");
+    var padButtonsObj = {};
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("depressed", usedButton, buttons);
+      if(buttons["12"]) padButtonsObj[12] = 12;
+      if(buttons["14"]) padButtonsObj[14] = 14;
+      if(buttons["13"]) padButtonsObj[13] = 13;
+      if(buttons["15"]) padButtonsObj[15] = 15;
+    });
+    padButtonsArr = Object.keys(padButtonsObj);
+    // console.log(parseInt(padButtonsArr.join("")));
+    if(padButtonsArr.length > 0) axisData([parseInt(padButtonsArr.join(""))]); else axisData(axes);
+    // console.log("end");
+  }
+  function buttonsReleasedOnce(buttons) {
+    breakdownButton(buttons, function (usedButton) {
+      // console.log("released");
+      highlightButton(usedButton, true);
+    });
+  }
+
+  function breakdownButton(buttons, cb) {
+    Object.keys(buttons).map(function (btn) {
+      var usedButton = getButton(padInfo, btn);
+      // console.log(checked, usedButton);
+      // console.log(btn, "(" + (parseInt(btn) + 1) + ")", "Config:", usedButton);
+      cb(usedButton);
+    });
+  }
+
+  function axisData(axes) {
+    // console.log(axes);
+    var axPlus = axes.reduce((m,n) => m + n);
+    // console.log(axPlus);
+    var value = axes.length === 4 ? axPlus.toFixed(2) : axes.pop().toFixed(2);
+    var input = getStickInput(value) || "n";
+    // console.log(value);
+    if(input) returnData.axis = input;
+    if(input && ballTop && !ballTop.hasClass(input)) {
+      returnData.oneAxis = input;
+      // console.log(input);
+      ballTop.removeClass(["n", "u", "ur", "r", "dr", "d", "dl", "l", "ul"]);
+      // console.log(value, input);
+      ballTop.addClass(input);
+      // console.log(value, gamepads[gamepadName].axes[value]);
+    }
+  }
+
+  function getStickInput(value) {
+    return gamepads[gamepadName].axes[value];
+  }
+
+  function convert(data) {
+    var newData = {
+      axis: data.axis,
+    };
+    if(data.oneAxis) newData.oneAxis = data.oneAxis;
+    // console.log(data);
+    ["onePress", "depressed", "oneRelease"].map(state => {
+      var stateData = data[state];
+      if(!stateData) return;
+      var newStateData = {};
+      Object.keys(stateData).map(btn => {
+        newStateData[getButton(padInfo, btn)] = true;
+      });
+
+      newData[state] = newStateData;
+    });
+
+    return newData
+  }
+
+  return convert(returnData);
+}
+
+function getInputImage(configBtn) {
+  // console.log(configBtn);
+  var img = document.createElement("img");
+  var data = getData(configBtn);
+  if(data) {
+    img.className = data.className;
+    img.src = data.src;
+    return img;
+  }
+
+  function getData(configBtn) {
+    if(typeof configBtn === "string") {
+      // console.log("axis");
+      // console.log(inputImages[configBtn]);
+      return inputImages[configBtn];
+    } else {
+      // console.log("button");
+      switch (configBtn) {
+        case 0: return inputImages["lp"];
+        case 3: return inputImages["mp"];
+        case 5: return inputImages["hp"];
+        case 4: return inputImages["lmhp"];
+
+        case 1: return inputImages["lk"];
+        case 2: return inputImages["mk"];
+        case 7: return inputImages["hk"];
+        case 6: return inputImages["lmhk"];
+      }
+    }
+  }
+}
+
+// class GFX
+// class GameLoop
+
+// starter
+(function () {
+  // populateCharacters();
+  // getPads();
+  // setInterval(getPads, 1000/60);
+  // gameLoop();
+  // setInterval(function () {
+  //   // console.log("FPS:", framesCounted);
+  //   fps.innerText = framesCounted;
+  //   framesCounted = 0;
+  // }, 1000);
+})()
